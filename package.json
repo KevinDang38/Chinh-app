@@ -9,9 +9,13 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@g-loot/react-tournament-brackets": "^1.0.31-rc",
+    "@supabase/supabase-js": "^2.107.0",
     "next": "16.2.7",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-svg-pan-zoom": "^3.13.1",
+    "styled-components": "^6.4.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
