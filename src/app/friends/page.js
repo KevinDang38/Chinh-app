@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import Link from "next/link";
 import { useLanguage } from "../../context/LanguageContext";
-import { Search, UserPlus, ChevronRight, Users, LogIn } from "lucide-react";
+import { Search, UserPlus, Users, LogIn } from "lucide-react";
 
 const getInitials = (email) => {
   if (!email) return '?';
@@ -89,7 +89,6 @@ export default function Friends() {
     </div>
   );
 
-  // PREVENTS CRASH: If no user is logged in, show a polite message
   if (!user) return (
     <main className="min-h-screen flex items-center justify-center bg-[#050507] p-6 text-center">
       <div className="glass-panel p-8 sm:p-12 rounded-[2.5rem] max-w-md w-full border border-white/5 bg-linear-to-br from-white/3 to-transparent">
@@ -174,12 +173,9 @@ export default function Friends() {
                     <div className="w-12 h-12 shrink-0 rounded-full bg-black border border-white/10 flex items-center justify-center font-black text-sm text-zinc-400 shadow-inner group-hover:border-orange-500/50 group-hover:text-orange-400 transition-colors">
                       {getInitials(friend.email)}
                     </div>
-                    <div className="flex flex-col truncate pr-2">
+                    <div className="flex flex-col truncate pr-2 justify-center">
                       <span className="font-bold text-white truncate text-base sm:text-lg group-hover:text-orange-400 transition-colors">
                         {formatName(friend.email)}
-                      </span>
-                      <span className="text-[10px] sm:text-xs text-zinc-500 font-bold uppercase tracking-wider mt-0.5 group-hover:text-zinc-400 transition-colors flex items-center gap-1">
-                        {t('friends.viewProfile')} <ChevronRight className="w-3 h-3" />
                       </span>
                     </div>
                   </div>

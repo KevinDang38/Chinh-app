@@ -35,8 +35,7 @@
     "searchPlaceholder": "Enter friend's exact email...",
     "addBtn": "Add Friend",
     "myFriends": "My Friends",
-    "noFriends": "You haven't added any friends yet.",
-    "viewProfile": "View Profile & History →"
+    "noFriends": "You haven't added any friends yet."
   },
   "logMatch": {
     "manual": "Manual Entry",
