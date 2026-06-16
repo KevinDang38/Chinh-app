@@ -3,143 +3,284 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "../../../context/LanguageContext";
+import { motion, AnimatePresence } from "framer-motion";
+import { Calendar, MapPin, Trophy, Users, DollarSign, ChevronLeft, Activity, Globe, Target } from "lucide-react";
 
-export default function CreateEvent() {
+export default function HostEvent() {
   const router = useRouter();
   const { t } = useLanguage();
-  const [user, setUser] = useState(null);
   
-  const [formData, setFormData] = useState({
-    title: "",
-    event_category: "single_elimination",
-    format: "Doubles",
-    begin_date: "",
-    end_date: "",
-    region: "",
-    location: "",
-    min_dupr: 3.0,
-    max_dupr: 4.0,
-    max_players: 16
-  });
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const inputStyle = "block w-full h-12 rounded-xl border border-zinc-800 px-4 text-white bg-zinc-950 focus:border-orange-500 outline-none transition-all";
+  const [title, setTitle] = useState("");
+  const [eventType, setEventType] = useState("tournament");
+  const [format, setFormat] = useState("doubles");
+  const [beginDate, setBeginDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [region, setRegion] = useState("");
+  const [location, setLocation] = useState("");
+  const [minDupr, setMinDupr] = useState("");
+  const [maxDupr, setMaxDupr] = useState("");
+  const [maxPlayers, setMaxPlayers] = useState("");
+  const [entryFee, setEntryFee] = useState("");
 
   useEffect(() => {
-    const checkAdmin = async () => {
+    const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return router.push("/login");
-      setUser(session.user);
+      if (!session) {
+        router.push("/login");
+      } else {
+        setCurrentUser(session.user);
+      }
     };
-    checkAdmin();
+    checkUser();
   }, [router]);
 
-  const handleCreate = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (formData.max_players % 2 !== 0) {
-      return alert(t('events.create.error_even_players'));
+    if (!currentUser) return;
+    setLoading(true);
+
+    if (maxPlayers && parseInt(maxPlayers) % 2 !== 0) {
+      alert(t('events.create.error_even_players'));
+      setLoading(false);
+      return;
     }
 
-    // Convert dates to ISO
-    const startDate = new Date(formData.begin_date).toISOString();
-    const endDate = new Date(formData.end_date).toISOString();
-
-    const { error } = await supabase.from('events').insert([{
-        title: formData.title,
-        event_category: formData.event_category,
-        format: formData.format,
-        // Mapping to date_time to fix your NOT NULL constraint error
-        date_time: startDate, 
-        begin_date: startDate,
+    const { data: eventData, error: eventError } = await supabase.from('events').insert([
+      {
+        host_id: currentUser.id,
+        title,
+        event_type: eventType,
+        format,
+        begin_date: beginDate,
         end_date: endDate,
-        region: formData.region,
-        location: formData.location,
-        min_dupr: Number(formData.min_dupr),
-        max_dupr: Number(formData.max_dupr),
-        max_players: Number(formData.max_players),
-        creator_id: user.id,
-        event_status: 'registration'
-    }]);
+        region,
+        location,
+        min_dupr: minDupr ? parseFloat(minDupr) : 0,
+        max_dupr: maxDupr ? parseFloat(maxDupr) : 8.0,
+        max_players: maxPlayers ? parseInt(maxPlayers) : null,
+        entry_fee: entryFee || t('events.create.free'),
+        status: 'registration'
+      }
+    ]).select().single();
 
-    if (!error) {
-      router.push("/events");
+    setLoading(false);
+
+    if (eventError) {
+      alert("Error creating event: " + eventError.message);
     } else {
-      alert("Error: " + error.message);
+      router.push(`/events/${eventData.id}`);
     }
   };
 
+  const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
+  const itemVariants = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", bounce: 0.4 } } };
+
   return (
-    <main className="min-h-screen bg-black p-4 md:p-8 flex items-start md:items-center justify-center w-full pb-24">
-      <div className="bg-zinc-900 p-6 md:p-8 rounded-3xl border border-zinc-800 w-full max-w-xl shadow-2xl mt-4 md:mt-0">
-        <div className="mb-6 border-b border-zinc-800 pb-4">
-          <h1 className="text-2xl font-extrabold text-white">{t('events.create.title')}</h1>
-        </div>
-        
-        <form onSubmit={handleCreate} className="space-y-5">
-          <div>
-            <label className="block text-sm font-bold text-zinc-400 mb-2">{t('events.create.event_title')}</label>
-            <input type="text" required value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className={inputStyle} placeholder={t('events.create.titlePlaceholder')} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-zinc-400 mb-2">{t('events.create.event_type')}</label>
-              <select required value={formData.event_category} onChange={(e) => setFormData({...formData, event_category: e.target.value})} className={inputStyle}>
-                <option value="single_elimination">{t('events.create.type_tournament')}</option>
-                <option value="open_play">{t('events.create.type_open')}</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-zinc-400 mb-2">{t('events.create.format')}</label>
-              <select required value={formData.format} onChange={(e) => setFormData({...formData, format: e.target.value})} className={inputStyle}>
-                <option value="Singles">{t('events.create.singles')}</option>
-                <option value="Doubles">{t('events.create.doubles')}</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-zinc-400 mb-2">{t('events.create.begin_date')}</label>
-              <input type="datetime-local" required value={formData.begin_date} onChange={(e) => setFormData({...formData, begin_date: e.target.value})} className={`${inputStyle} px-2`} style={{colorScheme: 'dark'}} />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-zinc-400 mb-2">{t('events.create.end_date')}</label>
-              <input type="datetime-local" required value={formData.end_date} onChange={(e) => setFormData({...formData, end_date: e.target.value})} className={`${inputStyle} px-2`} style={{colorScheme: 'dark'}} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-zinc-400 mb-2">{t('events.create.region')}</label>
-              <input type="text" required value={formData.region} onChange={(e) => setFormData({...formData, region: e.target.value})} className={inputStyle} placeholder={t('events.create.regionPlaceholder')} />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-zinc-400 mb-2">{t('events.create.location')}</label>
-              <input type="text" required value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className={inputStyle} placeholder={t('events.create.locationPlaceholder')} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-zinc-400 mb-2">{t('events.create.min_dupr')}</label>
-              <input type="number" step="0.01" required value={formData.min_dupr} onChange={(e) => setFormData({...formData, min_dupr: e.target.value})} className={`${inputStyle} [appearance:textfield]`} />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-zinc-400 mb-2">{t('events.create.max_dupr')}</label>
-              <input type="number" step="0.01" required value={formData.max_dupr} onChange={(e) => setFormData({...formData, max_dupr: e.target.value})} className={`${inputStyle} [appearance:textfield]`} />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-zinc-400 mb-2">{t('events.create.max_players')}</label>
-              <input type="number" min="2" step="2" required value={formData.max_players} onChange={(e) => setFormData({...formData, max_players: e.target.value})} className={`${inputStyle} [appearance:textfield]`} />
-            </div>
-          </div>
-
-          <button type="submit" className="w-full bg-orange-600 text-white font-extrabold py-4 rounded-xl hover:bg-orange-500 mt-6 shadow-lg shadow-orange-900/50 transition text-lg">
-            {t('events.create.publish_btn')}
+    <main className="min-h-screen bg-[#050507] pb-32 w-full overflow-x-hidden">
+      
+      {/* TOP NAVIGATION */}
+      <div className="sticky top-0 z-50 bg-[#050507]/80 backdrop-blur-xl border-b border-white/5 px-4 py-4 sm:px-8">
+        <div className="max-w-4xl mx-auto flex items-center">
+          <button onClick={() => router.back()} className="flex items-center justify-center w-10 h-10 rounded-full bg-white/5 border border-white/10 text-zinc-400 hover:text-white hover:bg-white/10 transition-all">
+            <ChevronLeft className="w-5 h-5 pr-0.5" />
           </button>
-        </form>
+          <span className="ml-4 text-xs font-black text-zinc-500 uppercase tracking-widest">{t('common.back')}</span>
+        </div>
       </div>
+
+      <div className="p-4 md:p-8">
+        <motion.div variants={containerVariants} initial="hidden" animate="show" className="max-w-3xl mx-auto">
+          
+          {/* HEADER */}
+          <motion.div variants={itemVariants} className="mb-10 text-center sm:text-left">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tighter drop-shadow-sm mb-4 leading-[0.9]">
+              {t('events.create.title')}
+            </h1>
+            <p className="text-zinc-400 text-sm sm:text-base font-medium max-w-xl">{t('events.create.subtitle')}</p>
+          </motion.div>
+
+          <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
+            
+            {/* SECTION 1: BASIC DETAILS */}
+            <motion.div variants={itemVariants} className="glass-panel p-6 sm:p-10 rounded-[2.5rem] relative overflow-hidden shadow-2xl border border-white/5 bg-linear-to-br from-white/3 to-transparent">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-[100px] -mr-20 -mt-20 pointer-events-none"></div>
+              
+              <h2 className="text-xl font-black text-white mb-8 flex items-center gap-3 relative z-10">
+                <div className="w-10 h-10 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+                  <Trophy className="w-5 h-5 text-orange-500" /> 
+                </div>
+                {t('events.create.basicDetails')}
+              </h2>
+
+              <div className="space-y-6 relative z-10">
+                <div>
+                  <label className="block text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 pl-1">{t('events.create.event_title')}</label>
+                  <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('events.create.titlePlaceholder')} className="w-full h-14 px-5 bg-black/40 border border-white/10 rounded-2xl text-white outline-none focus:border-orange-500/50 transition-all placeholder:text-zinc-600 shadow-inner text-base font-bold" />
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 pl-1">{t('events.create.event_type')}</label>
+                    <div className="flex glass-card rounded-2xl p-1.5 border border-white/5 bg-black/40 relative z-20">
+                      {[
+                        { id: 'tournament', label: t('events.create.type_tournament') },
+                        { id: 'open_play', label: t('events.create.type_open') }
+                      ].map((type) => (
+                        <button
+                          key={type.id}
+                          type="button"
+                          onClick={() => setEventType(type.id)}
+                          className={`relative flex-1 py-3 px-2 rounded-xl font-bold text-xs sm:text-sm outline-none transition-colors duration-300 ${
+                            eventType === type.id ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+                          }`}
+                        >
+                          {eventType === type.id && (
+                            <motion.div
+                              layoutId="eventTypeIndicator"
+                              className="absolute inset-0 bg-white/10 rounded-xl shadow-md border border-white/10"
+                              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                            />
+                          )}
+                          <span className="relative z-10 block tracking-wide">{type.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 pl-1">{t('events.create.format')}</label>
+                    <div className="flex glass-card rounded-2xl p-1.5 border border-white/5 bg-black/40 relative z-20">
+                      {[
+                        { id: 'singles', label: t('events.create.singles') },
+                        { id: 'doubles', label: t('events.create.doubles') }
+                      ].map((f) => (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => setFormat(f.id)}
+                          className={`relative flex-1 py-3 px-2 rounded-xl font-bold text-xs sm:text-sm outline-none transition-colors duration-300 ${
+                            format === f.id ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+                          }`}
+                        >
+                          {format === f.id && (
+                            <motion.div
+                              layoutId="formatIndicator"
+                              className="absolute inset-0 bg-white/10 rounded-xl shadow-md border border-white/10"
+                              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                            />
+                          )}
+                          <span className="relative z-10 block tracking-wide">{f.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* SECTION 2: LOGISTICS & TIME */}
+            <motion.div variants={itemVariants} className="glass-panel p-6 sm:p-10 rounded-[2.5rem] relative overflow-hidden shadow-2xl border border-white/5 bg-linear-to-br from-white/3 to-transparent">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[100px] -mr-20 -mt-20 pointer-events-none"></div>
+              
+              <h2 className="text-xl font-black text-white mb-8 flex items-center gap-3 relative z-10">
+                <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                  <MapPin className="w-5 h-5 text-blue-500" /> 
+                </div>
+                {t('events.create.logisticsTime')}
+              </h2>
+              
+              <div className="space-y-6 relative z-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 pl-1">{t('events.create.begin_date')}</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                      <input type="date" required value={beginDate} onChange={(e) => setBeginDate(e.target.value)} className="w-full h-14 pl-12 pr-4 bg-black/40 border border-white/10 rounded-2xl text-white outline-none focus:border-blue-500/50 transition-all shadow-inner scheme-dark text-base font-bold appearance-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 pl-1">{t('events.create.end_date')}</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                      <input type="date" required value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full h-14 pl-12 pr-4 bg-black/40 border border-white/10 rounded-2xl text-white outline-none focus:border-blue-500/50 transition-all shadow-inner scheme-dark text-base font-bold appearance-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 pl-1">{t('events.create.location')}</label>
+                    <input type="text" required value={location} onChange={(e) => setLocation(e.target.value)} placeholder={t('events.create.locationPlaceholder')} className="w-full h-14 px-5 bg-black/40 border border-white/10 rounded-2xl text-white outline-none focus:border-blue-500/50 transition-all placeholder:text-zinc-600 shadow-inner text-base font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 pl-1">{t('events.create.region')}</label>
+                    <div className="relative">
+                      <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                      <input type="text" required value={region} onChange={(e) => setRegion(e.target.value)} placeholder={t('events.create.regionPlaceholder')} className="w-full h-14 pl-12 pr-4 bg-black/40 border border-white/10 rounded-2xl text-white outline-none focus:border-blue-500/50 transition-all placeholder:text-zinc-600 shadow-inner text-base font-bold" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-black/20 p-5 rounded-3xl border border-white/5">
+                  <label className="block text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 pl-1">{t('events.create.entryFeeOptional')}</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500/70" />
+                    <input type="text" value={entryFee} onChange={(e) => setEntryFee(e.target.value)} placeholder={t('events.create.feePlaceholder')} className="w-full h-14 pl-12 pr-4 bg-black/40 border border-white/10 rounded-2xl text-white outline-none focus:border-green-500/50 transition-all placeholder:text-zinc-600 shadow-inner text-base font-bold" />
+                  </div>
+                  <p className="text-[10px] text-zinc-500 font-bold mt-3 pl-1">{t('events.create.paymentDisclaimer')}</p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* SECTION 3: RESTRICTIONS & LIMITS */}
+            <motion.div variants={itemVariants} className="glass-panel p-6 sm:p-10 rounded-[2.5rem] relative overflow-hidden shadow-2xl border border-white/5 bg-linear-to-br from-white/3 to-transparent">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-[100px] -mr-20 -mt-20 pointer-events-none"></div>
+              
+              <h2 className="text-xl font-black text-white mb-8 flex items-center gap-3 relative z-10">
+                <div className="w-10 h-10 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+                  <Target className="w-5 h-5 text-purple-500" /> 
+                </div>
+                {t('events.create.restrictionsLimits')}
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 relative z-10">
+                <div>
+                  <label className="block text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 pl-1">{t('events.create.min_dupr')}</label>
+                  <input type="number" step="0.001" min="0" max="8" value={minDupr} onChange={(e) => setMinDupr(e.target.value)} placeholder="0.000" className="w-full h-14 px-5 bg-black/40 border border-white/10 rounded-2xl text-white outline-none focus:border-purple-500/50 transition-all placeholder:text-zinc-600 shadow-inner no-spinners text-base font-bold" />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 pl-1">{t('events.create.max_dupr')}</label>
+                  <input type="number" step="0.001" min="0" max="8" value={maxDupr} onChange={(e) => setMaxDupr(e.target.value)} placeholder="8.000" className="w-full h-14 px-5 bg-black/40 border border-white/10 rounded-2xl text-white outline-none focus:border-purple-500/50 transition-all placeholder:text-zinc-600 shadow-inner no-spinners text-base font-bold" />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-2 pl-1">{t('events.create.max_players')}</label>
+                  <div className="relative">
+                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                    <input type="number" min="2" step="2" value={maxPlayers} onChange={(e) => setMaxPlayers(e.target.value)} placeholder={t('events.create.openPlayers')} className="w-full h-14 pl-12 pr-4 bg-black/40 border border-white/10 rounded-2xl text-white outline-none focus:border-purple-500/50 transition-all placeholder:text-zinc-600 shadow-inner no-spinners text-base font-bold" />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* SUBMIT BUTTON */}
+            <motion.div variants={itemVariants} className="pt-6">
+              <button type="submit" disabled={loading} className="w-full bg-orange-600 text-white font-black text-lg py-5 rounded-3xl hover:bg-orange-500 active:scale-95 transition-all shadow-[0_20px_50px_rgba(234,88,12,0.3)] disabled:opacity-50 flex items-center justify-center gap-3">
+                {loading ? <div className="w-6 h-6 border-4 border-white/20 border-t-white rounded-full animate-spin"></div> : <><Activity className="w-6 h-6" /> {t('events.create.publish_btn')}</>}
+              </button>
+            </motion.div>
+          </form>
+        </motion.div>
+      </div>
+
+      <style jsx global>{`
+        input.no-spinners::-webkit-outer-spin-button,
+        input.no-spinners::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number].no-spinners { -moz-appearance: textfield; }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; opacity: 0; }
+      `}</style>
     </main>
   );
 }

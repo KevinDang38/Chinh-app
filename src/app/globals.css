@@ -1,1 +1,48 @@
 @import "tailwindcss";
+
+:root {
+  /* Premium Deep Off-Black Theme */
+  --bg-base: #050507;
+  --bg-surface: #0a0a0c;
+  --bg-surface-elevated: #121215;
+  
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(255, 255, 255, 0.1);
+  
+  --accent-orange: #ea580c;
+  --accent-orange-glow: rgba(234, 88, 12, 0.2);
+}
+
+body {
+  background-color: var(--bg-base);
+  color: #ffffff;
+  /* Prevent overscroll bounce on mobile to feel more native */
+  overscroll-behavior-y: none; 
+}
+
+@layer utilities {
+  /* Custom Glassmorphism Classes */
+  .glass-panel {
+    background: rgba(18, 18, 21, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-subtle);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border-strong);
+  }
+
+  /* Custom Scrollbar for the horizontal avatar lists */
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

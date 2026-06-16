@@ -3,12 +3,20 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useLanguage } from "../../../context/LanguageContext"; // <-- Import Hook
+import { useLanguage } from "../../../context/LanguageContext";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronRight, Activity, Trophy, ShieldAlert, Users } from "lucide-react";
+
+// --- HELPER FUNCTION ---
+const getInitials = (email) => {
+  if (!email) return '?';
+  return email.substring(0, 2).toUpperCase();
+};
 
 export default function UserProfile() {
   const { id } = useParams(); 
   const router = useRouter();
-  const { t } = useLanguage(); // <-- Init Hook
+  const { t } = useLanguage();
   
   const [currentUser, setCurrentUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -22,7 +30,7 @@ export default function UserProfile() {
   const [stats, setStats] = useState({ wins: 0, losses: 0, total: 0 });
   const [loading, setLoading] = useState(true);
 
-  const formatName = (email) => email ? email.split('@')[0] : t('common.guest');
+  const formatName = (email) => email ? email.split('@')[0] : (t('common.guest') || 'Guest');
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -86,125 +94,236 @@ export default function UserProfile() {
   }, [id, router]);
 
   const handleAddFriend = async () => {
-    if (!currentUser) return alert(t('profile.loginToAdd'));
+    if (!currentUser) return alert(t('profile.loginToAdd') || "Log in to add friends!");
     const { error } = await supabase.from('friends').insert([{ user_id: currentUser.id, friend_id: profile.id }]);
     if (error) alert("Error: " + error.message);
     else {
       setIsFriend(true);
-      alert(t('profile.friendAdded'));
+      alert(t('profile.friendAdded') || "Friend added!");
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-black font-bold text-zinc-500">{t('common.loading')}</div>;
+  if (loading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center font-bold text-zinc-500 bg-[#050507]">
+      <div className="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"></div>
+      {t('common.loading') || 'Loading profile...'}
+    </div>
+  );
 
   const displayMatches = (matchTab === '1v1' ? singlesMatches : doublesMatches).slice(0, 5);
 
   return (
-    <main className="min-h-screen bg-black p-4 md:p-8 w-full">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <main 
+      className="min-h-screen px-4 py-6 md:p-8 w-full pb-24 overflow-y-auto overflow-x-hidden touch-pan-y bg-[#050507]"
+      style={{ WebkitOverflowScrolling: 'touch' }}
+    >
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="max-w-4xl mx-auto space-y-6 sm:space-y-8"
+      >
         
-        <div className="bg-zinc-900 p-8 rounded-3xl shadow-xl border border-zinc-800 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-orange-500"></div>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-            <div className="w-full md:w-auto overflow-hidden">
-              <h1 className="text-2xl md:text-3xl font-extrabold text-white mb-2 truncate">{profile.email}</h1>
-              <p className="text-sm font-bold text-zinc-500">{t('profile.profileId')}: {profile.profile_hash}</p>
-            </div>
-            <div className="text-left md:text-right">
-              <p className="text-xs text-orange-400 font-bold uppercase tracking-widest mb-1">{t('profile.duprRating')}</p>
-              <p className="text-5xl font-black text-orange-500">{Number(profile.rating).toFixed(3)}</p>
-            </div>
-          </div>
-
-          {currentUser && currentUser.id !== profile.id && (
-            <div className="mt-8 pt-6 border-t border-zinc-800">
-              {isFriend ? (
-                <button disabled className="bg-zinc-800 text-zinc-400 border border-zinc-700 px-6 py-3 rounded-xl font-bold cursor-not-allowed w-full md:w-auto">{t('profile.onFriendsList')}</button>
-              ) : (
-                <button onClick={handleAddFriend} className="bg-orange-600 text-white font-extrabold px-6 py-3 rounded-xl hover:bg-orange-500 transition shadow-lg shadow-orange-900/50 w-full md:w-auto">{t('profile.addFriend')}</button>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-zinc-950 p-4 md:p-6 rounded-2xl border border-zinc-800 text-center">
-            <p className="text-[10px] md:text-xs text-zinc-500 font-bold uppercase mb-1 truncate">{t('profile.totalMatches')}</p>
-            <p className="text-2xl md:text-3xl font-black text-white">{stats.total}</p>
-          </div>
-          <div className="bg-zinc-950 p-4 md:p-6 rounded-2xl border border-zinc-800 text-center">
-            <p className="text-[10px] md:text-xs text-green-500 font-bold uppercase mb-1 truncate">{t('profile.wins')}</p>
-            <p className="text-2xl md:text-3xl font-black text-green-400">{stats.wins}</p>
-          </div>
-          <div className="bg-zinc-950 p-4 md:p-6 rounded-2xl border border-zinc-800 text-center">
-            <p className="text-[10px] md:text-xs text-red-500 font-bold uppercase mb-1 truncate">{t('profile.losses')}</p>
-            <p className="text-2xl md:text-3xl font-black text-red-400">{stats.losses}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* TABBED RECENT FORM */}
-          <div className="bg-zinc-900 p-6 rounded-3xl border border-zinc-800 shadow-xl">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-              <h3 className="text-xl font-bold text-white">{t('dashboard.recentForm')}</h3>
+        {/* COMPACT PREMIUM HERO CARD */}
+        <div className="glass-panel p-6 sm:p-8 rounded-4xl relative overflow-hidden shadow-2xl group">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none group-hover:bg-orange-500/20 transition-all duration-700"></div>
+          
+          <div className="relative z-10 flex flex-col sm:flex-row justify-between items-center gap-6">
+            
+            <div className="flex flex-col sm:flex-row items-center gap-5 sm:gap-6 text-center sm:text-left w-full sm:w-auto">
+              {/* Avatar */}
+              <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-3xl bg-black/40 border border-white/10 flex items-center justify-center font-black text-3xl text-zinc-400 shadow-inner backdrop-blur-md">
+                {getInitials(profile.email)}
+              </div>
               
-              <div className="flex bg-zinc-950 rounded-lg p-1 border border-zinc-800 w-full sm:w-auto">
-                <button onClick={() => setMatchTab('1v1')} className={`flex-1 sm:px-4 py-1.5 rounded font-bold text-xs transition ${matchTab === '1v1' ? 'bg-zinc-800 text-orange-500 shadow-md' : 'text-zinc-500 hover:text-white'}`}>{t('common.singles')}</button>
-                <button onClick={() => setMatchTab('2v2')} className={`flex-1 sm:px-4 py-1.5 rounded font-bold text-xs transition ${matchTab === '2v2' ? 'bg-zinc-800 text-blue-400 shadow-md' : 'text-zinc-500 hover:text-white'}`}>{t('common.doubles')}</button>
+              {/* User Identity & Friend Status Pill */}
+              <div className="flex flex-col items-center sm:items-start justify-center">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white mb-2 truncate tracking-tight">
+                  {formatName(profile.email)}
+                </h1>
+                
+                {/* ID and Friend button side-by-side perfectly aligned */}
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <p className="text-xs sm:text-sm font-bold text-zinc-500 flex items-center gap-2">
+                    <span className="uppercase tracking-wider text-[10px] bg-white/5 px-2 py-0.5 rounded border border-white/10">ID</span> 
+                    {profile.profile_hash}
+                  </p>
+
+                  {/* COMPACT DASHBOARD-STYLE ACTION PILL */}
+                  {currentUser && currentUser.id !== profile.id && (
+                    <>
+                      <span className="hidden sm:inline text-zinc-700 font-black">•</span>
+                      <div>
+                        {isFriend ? (
+                          <div className="bg-green-500/10 border border-green-500/20 px-4 py-1.5 rounded-full inline-flex items-center cursor-default">
+                            <span className="text-xs font-bold text-green-400 tracking-wide">
+                              {t('profile.onFriendsList') || '✓ Friends'}
+                            </span>
+                          </div>
+                        ) : (
+                          <button onClick={handleAddFriend} className="bg-orange-600 text-white font-extrabold px-4 py-1.5 rounded-full hover:bg-orange-500 active:scale-95 transition-all shadow-[0_0_15px_rgba(234,88,12,0.3)] inline-flex items-center text-xs">
+                            {t('profile.addFriend') || '➕ Add Friend'}
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
-            {displayMatches.length === 0 ? <p className="text-zinc-500">{matchTab === '1v1' ? t('profile.noSingles') : t('profile.noDoubles')}</p> : (
-              <div className="space-y-3">
-                {displayMatches.map((match) => {
-                  const isTeamA = match.player_a_id === profile.id || match.team_a_player2_id === profile.id;
-                  const teamAWon = match.player_a_score > match.player_b_score;
-                  const isWin = (isTeamA && teamAWon) || (!isTeamA && !teamAWon);
-                  
-                  return (
-                    <div key={match.id} className="flex items-center justify-between p-4 bg-zinc-950 border border-zinc-800 rounded-xl hover:border-zinc-700 transition">
-                      <div className="flex items-center gap-4">
-                        <span className={`px-2 py-1.5 text-[10px] font-black rounded-lg tracking-wider ${isWin ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                          {isWin ? t('common.win') : t('common.loss')}
-                        </span>
-                        <div>
-                          <span className="text-base font-extrabold text-zinc-200 block">
-                            {match.player_a_score} - {match.player_b_score}
-                          </span>
-                          <span className="text-xs text-zinc-500 font-medium block">
-                            {new Date(match.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className={`text-[10px] font-black uppercase rounded px-2 py-1 border ${match.match_type === '2v2' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-orange-500/10 text-orange-400 border-orange-500/20'}`}>
-                          {match.match_type === '2v2' ? t('common.doubles') : t('common.singles')}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+            {/* DUPR Rating Block - Vertically Centered */}
+            <div className="shrink-0 text-center sm:text-right w-full sm:w-auto glass-card sm:bg-transparent p-4 sm:p-0 rounded-2xl border border-white/5 sm:border-none self-center">
+              <p className="text-[10px] sm:text-xs text-orange-400 font-bold uppercase tracking-widest mb-1">{t('profile.duprRating') || 'DUPR Rating'}</p>
+              <p className="text-4xl sm:text-5xl font-black text-orange-500 drop-shadow-md">{Number(profile.rating).toFixed(3)}</p>
+            </div>
+            
+          </div>
+        </div>
+
+        {/* STATS GRID */}
+        <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          <div className="glass-card bg-white/2 p-4 sm:p-6 rounded-2xl border border-white/5 text-center shadow-inner hover:bg-white/4 transition-colors">
+            <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-500 mx-auto mb-2 opacity-50" />
+            <p className="text-[9px] sm:text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1 truncate">{t('profile.totalMatches') || 'Total Matches'}</p>
+            <p className="text-2xl sm:text-3xl font-black text-white">{stats.total}</p>
+          </div>
+          <div className="glass-card bg-green-500/2 p-4 sm:p-6 rounded-2xl border border-green-500/10 text-center shadow-inner hover:bg-green-500/4 transition-colors">
+            <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-green-500 mx-auto mb-2 opacity-50" />
+            <p className="text-[9px] sm:text-[10px] text-green-500 font-bold uppercase tracking-widest mb-1 truncate">{t('profile.wins') || 'Wins'}</p>
+            <p className="text-2xl sm:text-3xl font-black text-green-400">{stats.wins}</p>
+          </div>
+          <div className="glass-card bg-red-500/2 p-4 sm:p-6 rounded-2xl border border-red-500/10 text-center shadow-inner hover:bg-red-500/4 transition-colors">
+            <ShieldAlert className="w-5 h-5 sm:w-6 sm:h-6 text-red-500 mx-auto mb-2 opacity-50" />
+            <p className="text-[9px] sm:text-[10px] text-red-500 font-bold uppercase tracking-widest mb-1 truncate">{t('profile.losses') || 'Losses'}</p>
+            <p className="text-2xl sm:text-3xl font-black text-red-400">{stats.losses}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
+          
+          {/* RECENT FORM TABS & MATCHES */}
+          <div className="glass-panel p-5 sm:p-6 rounded-4xl relative">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                <Activity className="w-5 h-5 text-orange-500" /> {t('dashboard.recentForm') || 'Recent Form'}
+              </h3>
+              
+              {/* SAFARI FIXED: Sliding Tab Indicator */}
+              <div className="flex bg-black/40 rounded-xl p-1 border border-white/5 w-full sm:w-auto">
+                {['1v1', '2v2'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setMatchTab(tab)}
+                    className={`relative flex-1 sm:min-w-25 px-2 sm:px-4 py-2.5 rounded-lg font-bold text-xs sm:text-sm outline-none transition-colors duration-300 whitespace-nowrap ${
+                      matchTab === tab ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+                    }`}
+                  >
+                    {matchTab === tab && (
+                      <motion.div
+                        layoutId="profileMatchTab"
+                        className="absolute inset-0 bg-white/10 rounded-lg shadow-md border border-white/10"
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      />
+                    )}
+                    <span className="relative z-10 tracking-wider">
+                      {tab === '1v1' ? (t('common.singles') || 'Singles') : (t('common.doubles') || 'Doubles')}
+                    </span>
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
+
+            <div className="relative min-h-50">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={matchTab}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {displayMatches.length === 0 ? (
+                    <div className="py-10 text-center border border-dashed border-white/5 rounded-2xl bg-white/1">
+                      <p className="text-zinc-500 text-sm font-medium">
+                        {matchTab === '1v1' ? (t('profile.noSingles') || 'No Singles matches.') : (t('profile.noDoubles') || 'No Doubles matches.')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {displayMatches.map((match) => {
+                        const isTeamA = match.player_a_id === profile.id || match.team_a_player2_id === profile.id;
+                        const teamAWon = match.player_a_score > match.player_b_score;
+                        const isWin = (isTeamA && teamAWon) || (!isTeamA && !teamAWon);
+                        
+                        return (
+                          <div key={match.id} className="group flex items-center justify-between p-4 bg-black/20 border border-white/5 rounded-2xl hover:bg-white/2 transition-colors shadow-inner">
+                            <div className="flex items-center gap-3 sm:gap-4">
+                              <span className={`px-2.5 py-1 text-[10px] font-black rounded-lg tracking-widest ${isWin ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                                {isWin ? (t('common.win') || 'WIN') : (t('common.loss') || 'LOSS')}
+                              </span>
+                              <div>
+                                <span className="text-sm sm:text-base font-extrabold text-white block tracking-wide">
+                                  {match.player_a_score} - {match.player_b_score}
+                                </span>
+                                <span className="text-[10px] sm:text-xs text-zinc-500 font-bold uppercase tracking-wider block mt-0.5">
+                                  {new Date(match.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className={`text-[9px] font-black uppercase tracking-widest rounded-md px-2 py-1 border ${match.match_type === '2v2' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-orange-500/10 text-orange-400 border-orange-500/20'}`}>
+                                {match.match_type === '2v2' ? (t('common.doubles') || 'Doubles') : (t('common.singles') || 'Singles')}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </div>
 
           {/* FRIENDS ROSTER */}
-          <div className="bg-zinc-900 p-6 rounded-3xl border border-zinc-800 shadow-xl">
-            <h3 className="text-xl font-bold text-white mb-6">{t('profile.friendsRoster')}</h3>
-            {friends.length === 0 ? <p className="text-zinc-500">{t('friends.noFriends')}</p> : (
+          <div className="glass-panel p-5 sm:p-6 rounded-4xl">
+            <h3 className="text-lg sm:text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <Users className="w-5 h-5 text-orange-500" /> {t('profile.friendsRoster') || 'Friends Roster'}
+            </h3>
+            
+            {friends.length === 0 ? (
+              <div className="py-10 text-center border border-dashed border-white/5 rounded-2xl bg-white/1">
+                <p className="text-zinc-500 text-sm font-medium">{t('friends.noFriends') || 'No friends added yet.'}</p>
+              </div>
+            ) : (
               <div className="space-y-3">
                 {friends.map((friend) => (
-                  <Link href={`/profile/${friend.profile_hash}`} key={friend.id} className="flex justify-between items-center p-4 bg-zinc-950 rounded-xl border border-zinc-800 hover:border-orange-500 transition group">
-                    <span className="font-bold text-zinc-300 group-hover:text-orange-400 transition truncate pr-2">{formatName(friend.email)}</span>
-                    <span className="bg-orange-500/10 text-orange-400 font-bold px-2 py-1 rounded text-xs whitespace-nowrap">{Number(friend.rating).toFixed(3)}</span>
+                  <Link href={`/profile/${friend.profile_hash}`} key={friend.id} className="group flex items-center justify-between p-3 sm:p-4 bg-black/20 rounded-2xl border border-white/5 hover:bg-white/2 hover:border-orange-500/30 transition-all shadow-inner cursor-pointer">
+                    
+                    <div className="flex items-center gap-3 overflow-hidden pr-2">
+                      <div className="w-10 h-10 shrink-0 rounded-full bg-black border border-white/10 flex items-center justify-center font-black text-xs text-zinc-400 shadow-inner group-hover:border-orange-500/50 group-hover:text-orange-400 transition-colors">
+                        {getInitials(friend.email)}
+                      </div>
+                      <span className="font-bold text-sm sm:text-base text-zinc-300 group-hover:text-white transition-colors truncate">
+                        {formatName(friend.email)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="bg-orange-500/10 border border-orange-500/20 text-orange-400 font-bold px-2.5 py-1 rounded-lg text-xs">
+                        {Number(friend.rating).toFixed(3)}
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-orange-500 transition-colors" />
+                    </div>
                   </Link>
                 ))}
               </div>
             )}
           </div>
+          
         </div>
-
-      </div>
+      </motion.div>
     </main>
   );
 }

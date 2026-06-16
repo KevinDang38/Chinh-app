@@ -2,7 +2,7 @@ import "./globals.css";
 import MainLayout from "../components/MainLayout";
 
 export const metadata = {
-  title: "Chình | The Ultimate DUPR Network",
+  title: "Chình App",
   description: "Skill-based pickleball matchmaking and events.",
 };
 

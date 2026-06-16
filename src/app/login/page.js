@@ -1,110 +1,213 @@
 "use client";
 import { useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { useLanguage } from "../../context/LanguageContext";
 
-export default function Login() {
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [isForgotPassword, setIsForgotPassword] = useState(false);
+export default function AuthPage() {
+  // Safely grab all possible language functions from your context
+  const { t, language, toggleLanguage, setLanguage, changeLanguage } = useLanguage();
+  
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState(""); 
-  const [showPassword, setShowPassword] = useState(false); // Toggle State
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const router = useRouter();
+  const [errorMsg, setErrorMsg] = useState("");
+
+  // Bulletproof function to guarantee the language switches regardless of context naming
+  const handleLanguageSwitch = () => {
+    if (toggleLanguage) {
+      toggleLanguage();
+    } else if (setLanguage) {
+      setLanguage(language === 'en' ? 'vi' : 'en');
+    } else if (changeLanguage) {
+      changeLanguage(language === 'en' ? 'vi' : 'en');
+    } else {
+      console.error("Language toggle function missing from LanguageContext.");
+    }
+  };
+
+  // Ensures every string has a fallback if the translation key is missing
+  const safeTranslate = (key, fallback) => {
+    const result = t(key);
+    return (result === key || !result) ? fallback : result;
+  };
 
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setMessage("");
+    setErrorMsg("");
 
-    if (isForgotPassword) {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/update-password`,
-      });
-      if (error) setMessage("Error: " + error.message);
-      else setMessage("Check your email for the password reset link!");
-    } else if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) setMessage("Error: " + error.message);
-      else setMessage("Success! Check your email to verify.");
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setMessage("Error: " + error.message);
-      else router.push("/dashboard"); 
+    if (!isLogin && password !== confirmPassword) {
+      setErrorMsg(safeTranslate('auth.passwordsNotMatch', 'Passwords do not match.'));
+      setLoading(false);
+      return;
     }
-    setLoading(false);
-  };
 
-  const handleGoogleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/dashboard` }
-    });
-    if (error) setMessage("Google Login Error: " + error.message);
-  };
+    if (!isLogin && password.length < 6) {
+      setErrorMsg(safeTranslate('auth.passwordTooShort', 'Password must be at least 6 characters.'));
+      setLoading(false);
+      return;
+    }
 
-  const inputStyle = "block w-full h-12 rounded-xl border border-zinc-800 bg-zinc-900 text-white placeholder-zinc-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all px-4";
+    let error;
+
+    if (isLogin) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      error = signInError;
+    } else {
+      const { error: signUpError } = await supabase.auth.signUp({ email, password });
+      error = signUpError;
+      
+      if (!error) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('profiles').insert([{ id: user.id, email: user.email, rating: 3.500, role: 'player' }]);
+        }
+      }
+    }
+
+    if (error) {
+      setErrorMsg(error.message);
+      setLoading(false);
+    } else {
+      window.location.href = "/dashboard";
+    }
+  };
 
   return (
-    <main className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
-      <div className="mb-8 text-center">
-        <h1 className="text-5xl font-extrabold text-white tracking-tight flex items-center justify-center gap-3">
-          <span className="text-orange-500">⚡</span> Chình
+    <main className="fixed inset-0 z-100 flex flex-col items-center justify-center p-6 bg-[#050507] overflow-y-auto">
+      
+      {/* Brand Logo */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8 sm:mb-12 text-center"
+      >
+        <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tighter drop-shadow-md">
+          Chình
         </h1>
-        <p className="text-zinc-500 mt-2 font-bold uppercase tracking-widest text-sm">The Ultimate DUPR Network</p>
-      </div>
+      </motion.div>
 
-      <div className="bg-zinc-950 p-8 rounded-3xl shadow-2xl border border-zinc-800 w-full max-w-md">
-        {!isForgotPassword && (
-          <>
-            <div className="flex bg-zinc-900 rounded-xl p-1 mb-8 border border-zinc-800">
-              <button onClick={() => {setIsSignUp(false); setMessage("");}} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${!isSignUp ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-500 hover:text-white'}`}>Sign In</button>
-              <button onClick={() => {setIsSignUp(true); setMessage("");}} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${isSignUp ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-500 hover:text-white'}`}>Create Account</button>
-            </div>
-            <button onClick={handleGoogleLogin} className="w-full flex items-center justify-center gap-3 bg-white text-black font-extrabold py-3 px-4 rounded-xl hover:bg-zinc-200 transition shadow-sm mb-6">Continue with Google</button>
-            <div className="flex items-center gap-4 mb-6"><div className="h-px bg-zinc-800 flex-1"></div><span className="text-zinc-600 text-xs font-bold uppercase tracking-wider">Or Email</span><div className="h-px bg-zinc-800 flex-1"></div></div>
-          </>
-        )}
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }} 
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-md glass-panel p-8 sm:p-10 rounded-4xl border border-white/5 shadow-2xl relative overflow-hidden shrink-0"
+      >
+        {/* Subtle Background Glow */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-        <form onSubmit={handleAuth} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-zinc-400 mb-1">Email Address</label>
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputStyle} placeholder="player@example.com" />
+        <div className="relative z-10">
+          
+          {/* PERFECT ALIGNMENT: Flexbox container for Title and Button */}
+          <div className="flex justify-between items-start mb-2 gap-4">
+            <h2 className="text-3xl font-black text-white tracking-tighter leading-none pt-1">
+              {isLogin ? safeTranslate('auth.welcomeBack', 'Welcome Back') : safeTranslate('auth.createAccount', 'Create Account')}
+            </h2>
+            
+            <button 
+              type="button"
+              onClick={handleLanguageSwitch} 
+              className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 hover:bg-white/10 transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
+            >
+              <span className="text-[10px] font-bold text-zinc-400 tracking-wide">
+                {safeTranslate('sidebar.language', 'Language')}
+              </span>
+              <span className="text-[10px] font-black text-orange-500 uppercase">
+                {language || 'EN'}
+              </span>
+            </button>
           </div>
 
-          {!isForgotPassword && (
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="block text-sm font-semibold text-zinc-400">Password</label>
-                {!isSignUp && <button type="button" onClick={() => {setIsForgotPassword(true); setMessage("");}} className="text-xs font-bold text-orange-500 hover:text-orange-400">Forgot?</button>}
-              </div>
-              <div className="relative">
-                <input 
-                  type={showPassword ? "text" : "password"} 
-                  required 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  className={inputStyle} 
-                  placeholder="••••••••" 
-                />
-                <button 
-                  type="button" 
-                  onClick={() => setShowPassword(!showPassword)} 
-                  className="absolute right-4 top-3.5 text-zinc-500 hover:text-white text-xs font-bold uppercase"
+          <p className="text-zinc-400 text-sm mb-8 font-medium">
+            {isLogin ? safeTranslate('auth.signInDesc', 'Enter your details to sign in to Chình.') : safeTranslate('auth.signUpDesc', 'Join Chình and start tracking your matches.')}
+          </p>
+
+          {/* Form */}
+          <form onSubmit={handleAuth} className="flex flex-col w-full">
+            <input 
+              type="email" 
+              placeholder={safeTranslate('auth.emailPlaceholder', 'Email address')}
+              className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-orange-500/50 transition-all placeholder:text-zinc-600 shadow-inner mb-4"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <input 
+              type="password" 
+              placeholder={safeTranslate('auth.passwordPlaceholder', 'Password')}
+              className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-orange-500/50 transition-all placeholder:text-zinc-600 shadow-inner"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            
+            {/* Animated Confirm Password (Sign Up Only) */}
+            <AnimatePresence>
+              {!isLogin && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                  animate={{ height: "auto", opacity: 1, marginTop: 16 }}
+                  exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                  className="overflow-hidden"
                 >
-                  {showPassword ? "Hide" : "Show"}
-                </button>
-              </div>
-            </div>
-          )}
+                  <input 
+                    type="password" 
+                    placeholder={safeTranslate('auth.confirmPasswordPlaceholder', 'Confirm Password')}
+                    className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-orange-500/50 transition-all placeholder:text-zinc-600 shadow-inner"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required={!isLogin}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          <button type="submit" disabled={loading} className="w-full bg-orange-600 text-white font-extrabold py-4 rounded-xl hover:bg-orange-500 mt-4 text-lg">{loading ? "Processing..." : isForgotPassword ? "Send Reset Link" : isSignUp ? "Create Account" : "Sign In"}</button>
-        </form>
+            {/* Animated Error Message */}
+            <AnimatePresence>
+              {errorMsg && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                  animate={{ height: "auto", opacity: 1, marginTop: 16 }}
+                  exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                  className="overflow-hidden"
+                >
+                  <p className="text-red-400 text-xs font-bold bg-red-500/10 p-3 rounded-xl border border-red-500/20">
+                    {errorMsg}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            
+            <button 
+              disabled={loading}
+              className="w-full bg-orange-600 text-white font-extrabold py-4 rounded-xl mt-6 hover:bg-orange-500 active:scale-95 transition-all shadow-[0_0_20px_rgba(234,88,12,0.3)] disabled:opacity-50 disabled:active:scale-100"
+            >
+              {loading 
+                ? (isLogin ? safeTranslate('auth.signingIn', 'Signing in...') : safeTranslate('auth.creatingAccount', 'Creating account...')) 
+                : (isLogin ? safeTranslate('auth.signIn', 'Sign In') : safeTranslate('auth.signUp', 'Sign Up'))}
+            </button>
+          </form>
 
-        {isForgotPassword && <button onClick={() => {setIsForgotPassword(false); setMessage("");}} className="w-full mt-4 text-sm font-bold text-zinc-500 hover:text-white transition">&larr; Back to Login</button>}
-        {message && <div className={`mt-6 p-4 rounded-xl text-sm text-center font-bold ${message.includes("Error") ? "bg-red-500/10 text-red-400 border border-red-500/20" : "bg-green-500/10 text-green-400 border border-green-500/20"}`}>{message}</div>}
-      </div>
+          {/* Toggle between Login and Signup */}
+          <div className="mt-8 text-center">
+            <p className="text-zinc-500 text-sm font-medium">
+              {isLogin ? safeTranslate('auth.noAccount', "Don't have an account?") : safeTranslate('auth.hasAccount', 'Already have an account?')}{" "}
+              <button 
+                type="button"
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setErrorMsg("");
+                }}
+                className="text-orange-500 font-bold hover:text-orange-400 transition-colors"
+              >
+                {isLogin ? safeTranslate('auth.signUp', 'Sign Up') : safeTranslate('auth.signIn', 'Sign In')}
+              </button>
+            </p>
+          </div>
+        </div>
+      </motion.div>
     </main>
   );
 }
