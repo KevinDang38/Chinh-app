@@ -37,6 +37,20 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
   useEffect(() => setMobileOpen(false), [pathname, setMobileOpen]);
 
+  // PREVENT BACKGROUND SCROLLING WHEN MOBILE SIDEBAR IS OPEN
+  useEffect(() => {
+    if (isMobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    
+    // Cleanup function to ensure scrolling is re-enabled if component unmounts
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileOpen]);
+
   if (pathname === "/login" || pathname === "/update-password") return null;
 
   const handleSignOut = async () => {
