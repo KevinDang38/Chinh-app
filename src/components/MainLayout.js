@@ -1,48 +1,24 @@
 "use client";
-import { useState } from "react";
 import Sidebar from "./Sidebar";
 import { LanguageProvider } from "../context/LanguageContext";
 
 export default function MainLayout({ children }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
   return (
     <LanguageProvider>
-      <div className="flex h-screen overflow-hidden bg-black text-white w-full">
+      <div className="flex min-h-screen bg-[#050507] text-white font-sans selection:bg-orange-500/30">
         
-        {/* Mobile Overlay Backdrop (Click to close) */}
-        {isSidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
-            onClick={() => setIsSidebarOpen(false)}
-          />
-        )}
-
-        {/* The Sidebar */}
-        <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-
-        {/* The Main Content Area */}
-        <div className="flex-1 flex flex-col h-screen overflow-y-auto w-full">
-          
-          {/* Mobile Header: Hamburger moved to the Left */}
-          <div className="md:hidden flex items-center gap-4 p-4 border-b border-zinc-900 bg-zinc-950 shadow-sm sticky top-0 z-30">
-            <button 
-              onClick={() => setIsSidebarOpen(true)} 
-              className="text-2xl text-zinc-400 hover:text-white transition"
-            >
-              ☰
-            </button>
-            <h1 className="text-2xl font-extrabold text-white flex items-center gap-2">
-              <span className="text-orange-500">⚡</span> Chình
-            </h1>
-          </div>
-
-          {/* Page Content */}
-          <div className="w-full">
-            {children}
-          </div>
-
+        {/* The updated Sidebar automatically handles both the Desktop nav and the Mobile Top Header */}
+        <Sidebar />
+        
+        {/* 
+          Main Content Wrapper:
+          pt-16 ensures mobile content doesn't hide behind the fixed 4rem (16) mobile header.
+          md:pt-0 removes that top padding on desktop since the sidebar is on the left.
+        */}
+        <div className="flex-1 flex flex-col min-w-0 w-full pt-16 md:pt-0">
+          {children}
         </div>
+
       </div>
     </LanguageProvider>
   );
