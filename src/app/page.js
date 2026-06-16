@@ -318,7 +318,7 @@ export default function Home() {
       .select('*', { count: 'exact', head: true })
       .or(`player_a_id.eq.${user.id},team_a_player2_id.eq.${user.id},team_b_player1_id.eq.${user.id},team_b_player2_id.eq.${user.id}`);
 
-    if (!countError) {
+    if (!countError && userMatchCount !== null) {
       if (userMatchCount < 10) {
         K_FACTOR = 0.2; 
       } else if (userMatchCount >= 40) {
@@ -341,12 +341,21 @@ export default function Home() {
     const teamARating = (matchType === '2v2' || (isLive && lobbyState.match_type === '2v2')) ? (pA + pB) / 2 : pA;
     const teamBRating = (matchType === '2v2' || (isLive && lobbyState.match_type === '2v2')) ? (o1 + o2) / 2 : o1;
     
-    const expectedScore = 1 / (1 + Math.pow(10, (teamBRating - teamARating) / 1.0));
-    const totalPoints = scoreA + scoreB;
-    const actualScore = scoreA / totalPoints;
+    // =====================================================================
+    // HYBRID DUPR ALGORITHM: Weighting Win/Loss (70%) & Point Spread (30%)
+    // =====================================================================
+    const expectedPerformance = 1 / (1 + Math.pow(10, (teamBRating - teamARating) / 1.0));
     
-    const newRating = (profile.rating + K_FACTOR * (actualScore - expectedScore)).toFixed(3);
-    const ratingChange = Number(newRating) - profile.rating;
+    const totalPoints = scoreA + scoreB;
+    const actualPointsPct = scoreA / totalPoints;
+    const isWinner = scoreA > scoreB;
+    const matchResult = isWinner ? 1 : 0;
+
+    // Blend the raw Win/Loss result with the Points Differential
+    const actualPerformance = (matchResult * 0.7) + (actualPointsPct * 0.3);
+    
+    const ratingChange = K_FACTOR * (actualPerformance - expectedPerformance);
+    const newRating = (profile.rating + ratingChange).toFixed(3);
 
     await supabase.from('matches').insert([{ 
       match_type: isLive ? lobbyState.match_type : matchType,
