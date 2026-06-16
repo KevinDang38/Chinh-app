@@ -3,9 +3,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import Link from "next/link";
 import { useLanguage } from "../../context/LanguageContext";
-import { Search, UserPlus, ChevronRight, User } from "lucide-react";
+import { Search, UserPlus, ChevronRight, Users, LogIn } from "lucide-react";
 
-// --- HELPER FUNCTION ---
 const getInitials = (email) => {
   if (!email) return '?';
   return email.substring(0, 2).toUpperCase();
@@ -40,6 +39,8 @@ export default function Friends() {
       } else {
         setFriends([]);
       }
+    } else {
+      setUser(null);
     }
     setLoading(false);
   };
@@ -79,13 +80,31 @@ export default function Friends() {
     setSearchLoading(false);
   };
 
-  const formatName = (email) => email ? email.split('@')[0] : (t('common.guest') || 'Guest');
+  const formatName = (email) => email ? email.split('@')[0] : t('common.guest');
 
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center font-bold text-zinc-500 bg-[#050507]">
       <div className="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"></div>
-      {t('common.loading') || 'Loading...'}
+      {t('common.loading')}
     </div>
+  );
+
+  // PREVENTS CRASH: If no user is logged in, show a polite message
+  if (!user) return (
+    <main className="min-h-screen flex items-center justify-center bg-[#050507] p-6 text-center">
+      <div className="glass-panel p-8 sm:p-12 rounded-[2.5rem] max-w-md w-full border border-white/5 bg-linear-to-br from-white/3 to-transparent">
+        <div className="w-20 h-20 glass-card rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-white/10">
+          <Users className="w-10 h-10 text-orange-500" />
+        </div>
+        <h2 className="text-3xl font-black text-white tracking-tighter mb-3">Friends List</h2>
+        <p className="text-zinc-400 text-sm mb-8 leading-relaxed">
+          {t('profile.loginToAdd')}
+        </p>
+        <Link href="/login" className="w-full bg-orange-600 text-white font-black py-4 rounded-2xl text-lg hover:bg-orange-500 active:scale-95 transition-all shadow-[0_15px_40px_rgba(234,88,12,0.3)] flex justify-center items-center gap-2">
+          <LogIn className="w-5 h-5" /> Sign In to View Friends
+        </Link>
+      </div>
+    </main>
   );
 
   return (
@@ -95,9 +114,8 @@ export default function Friends() {
     >
       <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
 
-        {/* SEARCH / ADD FRIEND WIDGET */}
-        <div className="glass-panel p-5 sm:p-8 rounded-3xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none group-hover:bg-orange-500/20 transition-all duration-700"></div>
+        <div className="glass-panel p-5 sm:p-8 rounded-4xl relative overflow-hidden group border border-white/5 bg-linear-to-br from-white/3 to-transparent">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-[100px] -mr-20 -mt-20 pointer-events-none group-hover:bg-orange-500/20 transition-all duration-700"></div>
           
           <div className="relative z-10">
             <form onSubmit={addFriend} className="flex flex-col md:flex-row gap-3 sm:gap-4">
@@ -110,21 +128,21 @@ export default function Friends() {
                   required 
                   value={searchEmail} 
                   onChange={(e) => setSearchEmail(e.target.value)} 
-                  placeholder={t('friends.searchPlaceholder') || "Enter friend's email..."} 
-                  className="w-full h-14 sm:h-16 pl-12 sm:pl-14 pr-4 bg-black/40 border border-white/10 rounded-2xl text-white outline-none focus:border-orange-500/50 transition-all placeholder:text-zinc-600 shadow-inner text-base sm:text-lg" 
+                  placeholder={t('friends.searchPlaceholder')} 
+                  className="w-full h-14 sm:h-16 pl-12 sm:pl-14 pr-4 bg-black/40 border border-white/10 rounded-2xl text-white outline-none focus:border-orange-500/50 transition-all placeholder:text-zinc-600 shadow-inner text-base font-bold" 
                 />
               </div>
               <button 
                 type="submit" 
                 disabled={searchLoading || !searchEmail}
-                className="h-14 sm:h-16 whitespace-nowrap bg-orange-600 text-white font-extrabold px-6 sm:px-8 rounded-2xl hover:bg-orange-500 active:scale-95 transition-all shadow-[0_0_20px_rgba(234,88,12,0.3)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100"
+                className="h-14 sm:h-16 whitespace-nowrap bg-orange-600 text-white font-black px-6 sm:px-8 rounded-2xl hover:bg-orange-500 active:scale-95 transition-all shadow-[0_10px_30px_rgba(234,88,12,0.3)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100"
               >
                 {searchLoading ? (
                   <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
                 ) : (
                   <>
                     <UserPlus size={20} />
-                    {t('friends.addBtn') || 'Add Friend'}
+                    {t('friends.addBtn')}
                   </>
                 )}
               </button>
@@ -132,10 +150,9 @@ export default function Friends() {
           </div>
         </div>
 
-        {/* FRIENDS ROSTER */}
-        <div className="glass-panel p-5 sm:p-8 rounded-3xl">
-          <h2 className="text-lg sm:text-xl font-bold text-white mb-6 flex items-center gap-2">
-            {t('friends.myFriends') || 'Friends List'}
+        <div className="glass-panel p-5 sm:p-8 rounded-4xl border border-white/5 bg-linear-to-br from-white/1 to-transparent shadow-2xl">
+          <h2 className="text-lg sm:text-xl font-black text-white mb-6 flex items-center gap-2">
+            {t('friends.myFriends')}
           </h2>
           
           {friends.length === 0 ? (
@@ -143,7 +160,7 @@ export default function Friends() {
               <div className="w-16 h-16 glass-card rounded-full flex items-center justify-center mx-auto mb-4 border border-white/5">
                 <Users className="w-8 h-8 text-zinc-600" />
               </div>
-              <p className="text-zinc-500 text-sm font-medium">{t('friends.noFriends') || "You haven't added anyone yet."}</p>
+              <p className="text-zinc-500 text-sm font-medium">{t('friends.noFriends')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
@@ -151,7 +168,7 @@ export default function Friends() {
                 <Link 
                   href={`/profile/${friend.profile_hash}`} 
                   key={friend.id} 
-                  className="group flex items-center justify-between p-4 bg-black/20 rounded-2xl border border-white/5 hover:bg-white/3 hover:border-orange-500/30 transition-all duration-300 cursor-pointer shadow-inner"
+                  className="group flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/5 hover:bg-white/3 hover:border-orange-500/30 transition-all duration-300 cursor-pointer shadow-inner"
                 >
                   <div className="flex items-center gap-4 overflow-hidden">
                     <div className="w-12 h-12 shrink-0 rounded-full bg-black border border-white/10 flex items-center justify-center font-black text-sm text-zinc-400 shadow-inner group-hover:border-orange-500/50 group-hover:text-orange-400 transition-colors">
@@ -162,14 +179,14 @@ export default function Friends() {
                         {formatName(friend.email)}
                       </span>
                       <span className="text-[10px] sm:text-xs text-zinc-500 font-bold uppercase tracking-wider mt-0.5 group-hover:text-zinc-400 transition-colors flex items-center gap-1">
-                        {t('friends.viewProfile') || 'View Profile & History'} <ChevronRight className="w-3 h-3" />
+                        {t('friends.viewProfile')} <ChevronRight className="w-3 h-3" />
                       </span>
                     </div>
                   </div>
                   
                   <div className="shrink-0 text-right">
                     <span className="text-[9px] sm:text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-0.5">
-                      {t('common.rating') || 'Rating'}
+                      {t('common.rating')}
                     </span>
                     <span className="bg-orange-500/10 border border-orange-500/20 text-orange-400 font-black px-3 py-1.5 rounded-xl text-sm sm:text-base inline-block">
                       {Number(friend.rating).toFixed(3)}

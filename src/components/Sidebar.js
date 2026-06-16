@@ -45,25 +45,23 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     router.push("/login");
   };
 
-  const safeTranslate = (key, fallback) => {
-    const result = t(key);
-    return (result === key || !result) ? fallback : result;
-  };
-
   const navItems = [
-    { name: safeTranslate('sidebar.dashboard', 'Dashboard'), path: '/dashboard' },
-    { name: safeTranslate('sidebar.logMatch', 'Log Match'), path: '/' },
-    { name: safeTranslate('sidebar.friends', 'Friends'), path: '/friends' },
-    { name: safeTranslate('sidebar.events', 'Events'), path: '/events' },
+    { name: t('sidebar.dashboard'), path: '/dashboard' },
+    { name: t('sidebar.logMatch'), path: '/' },
+    { name: t('sidebar.events'), path: '/events' },
   ];
 
+  // Only show Friends and Host Event if the user is actively logged in
+  if (user) {
+    navItems.splice(2, 0, { name: t('sidebar.friends'), path: '/friends' });
+  }
+
   if (userProfile.role === "admin") {
-    navItems.push({ name: safeTranslate('sidebar.hostEvent', 'Host Event'), path: '/events/create' });
+    navItems.push({ name: t('sidebar.hostEvent'), path: '/events/create' });
   }
 
   return (
     <>
-      {/* 📱 MOBILE: Top Header (Logo Left, Hamburger Right) */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#050507]/90 backdrop-blur-xl border-b border-white/5 z-40 flex items-center justify-between px-5">
         <Link href="/dashboard" className="text-xl font-black text-white tracking-tighter">
           Chình
@@ -79,7 +77,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         </button>
       </div>
 
-      {/* 📱 MOBILE: Sleek Slide-In Drawer (From Right) */}
       {isMobileOpen && (
         <>
           <div 
@@ -89,7 +86,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           
           <div className="md:hidden fixed inset-y-0 right-0 w-70 bg-[#0a0a0c] z-50 flex flex-col justify-between shadow-2xl border-l border-white/5 animate-in slide-in-from-right duration-300">
             <div>
-              {/* Profile Integration in Mobile Menu */}
               <div className="p-6 border-b border-white/5 mb-2 bg-white/2">
                 {user ? (
                   <div className="flex items-center gap-3">
@@ -126,30 +122,30 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               </nav>
             </div>
 
-            {user && (
-              <div className="p-3 border-t border-white/5 space-y-1">
-                <button 
-                  onClick={toggleLanguage}
-                  className="w-full flex justify-between items-center px-5 py-4 text-sm font-bold text-zinc-500 rounded-2xl active:bg-white/5 transition-colors"
-                >
-                  <span>{safeTranslate('sidebar.language', 'Language')}</span>
-                  <span className="text-orange-500 uppercase">{language || 'EN'}</span>
-                </button>
+            <div className="p-3 border-t border-white/5 space-y-1">
+              <button 
+                onClick={toggleLanguage}
+                className="w-full flex justify-between items-center px-5 py-4 text-sm font-bold text-zinc-500 rounded-2xl active:bg-white/5 transition-colors"
+              >
+                <span>{t('sidebar.language')}</span>
+                <span className="text-orange-500 uppercase">{language || 'EN'}</span>
+              </button>
+              {user && (
                 <button 
                   onClick={handleSignOut} 
                   className="w-full text-left px-5 py-4 text-sm font-bold text-red-500/80 active:text-red-500 rounded-2xl active:bg-red-500/10 transition-colors"
                 >
-                  {safeTranslate('sidebar.signOut', 'Sign Out')}
+                  {t('sidebar.signOut')}
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </>
       )}
 
-      {/* 💻 DESKTOP: "Floating Island" Sidebar */}
-      <aside className="hidden md:flex flex-col justify-between w-64 h-[calc(100vh-2rem)] sticky top-4 ml-4 mb-4 bg-[#0a0a0c]/80 backdrop-blur-3xl border border-white/5 shrink-0 rounded-4xl shadow-2xl overflow-hidden z-50">
-        <div className="absolute top-0 left-0 w-full h-32 bg-linear-to-b from-white/3 to-transparent pointer-events-none"></div>
+      {/* 💻 DESKTOP SIDEBAR - Layout Fixed (No gap on left) */}
+      <aside className="hidden md:flex flex-col justify-between w-64 h-screen sticky top-0 bg-[#0a0a0c]/80 backdrop-blur-3xl border-r border-white/5 shrink-0 overflow-hidden z-50">
+        <div className="absolute top-0 left-0 w-full h-32 bg-linear-to-b from-white/2 to-transparent pointer-events-none"></div>
 
         <div className="pt-10 relative z-10">
           <div className="px-8 mb-10">
@@ -178,23 +174,23 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           </nav>
         </div>
 
-        {user && (
-          <div className="p-3 space-y-1 relative z-10">
-            <button 
-              onClick={toggleLanguage}
-              className="w-full flex justify-between items-center px-5 py-3 text-sm font-bold text-zinc-500 hover:text-white transition-colors rounded-2xl hover:bg-white/5"
-            >
-              <span className="tracking-wide">{safeTranslate('sidebar.language', 'Language')}</span>
-              <span className="text-orange-500 uppercase">{language || 'EN'}</span>
-            </button>
+        <div className="p-3 space-y-1 relative z-10 mb-4">
+          <button 
+            onClick={toggleLanguage}
+            className="w-full flex justify-between items-center px-5 py-3 text-sm font-bold text-zinc-500 hover:text-white transition-colors rounded-2xl hover:bg-white/5"
+          >
+            <span className="tracking-wide">{t('sidebar.language')}</span>
+            <span className="text-orange-500 uppercase">{language || 'EN'}</span>
+          </button>
+          {user && (
             <button 
               onClick={handleSignOut} 
               className="w-full text-left px-5 py-3 text-sm font-bold text-red-500/70 hover:text-red-500 transition-colors rounded-2xl hover:bg-red-500/10 tracking-wide"
             >
-              {safeTranslate('sidebar.signOut', 'Sign Out')}
+              {t('sidebar.signOut')}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </aside>
     </>
   );
