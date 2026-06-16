@@ -1,221 +1,200 @@
 "use client";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
-import { useLanguage } from "../context/LanguageContext";
+import { supabase } from "../../lib/supabaseClient";
+import Link from "next/link";
+import { useLanguage } from "../../context/LanguageContext";
+import { Search, UserPlus, Users, LogIn, ChevronRight } from "lucide-react";
 
-export default function Sidebar({ isOpen, setIsOpen }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  
+const getInitials = (email) => {
+  if (!email) return '?';
+  return email.substring(0, 2).toUpperCase();
+};
+
+export default function Friends() {
+  const { t } = useLanguage();
+
   const [user, setUser] = useState(null);
-  const [userProfile, setUserProfile] = useState({ role: "player", hash: "" });
+  const [friends, setFriends] = useState([]);
+  const [searchEmail, setSearchEmail] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
 
-  const [localIsOpen, setLocalIsOpen] = useState(false);
-  const isMobileOpen = isOpen !== undefined ? isOpen : localIsOpen;
-  const setMobileOpen = setIsOpen !== undefined ? setIsOpen : setLocalIsOpen;
+  useEffect(() => { loadFriends(); }, []);
 
-  const { t, language, toggleLanguage } = useLanguage();
+  const loadFriends = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      setUser(session.user);
+      const userId = session.user.id;
 
-  useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setUser(session.user);
-        const { data: profile } = await supabase.from('profiles').select('role, profile_hash').eq('id', session.user.id).single();
-        if (profile) setUserProfile({ role: profile.role, hash: profile.profile_hash });
+      const { data: connections } = await supabase
+        .from('friends')
+        .select('user_id, friend_id')
+        .or(`user_id.eq.${userId},friend_id.eq.${userId}`);
+
+      if (connections && connections.length > 0) {
+        const friendIds = [...new Set(connections.map(c => c.user_id === userId ? c.friend_id : c.user_id))];
+        const { data: friendProfiles } = await supabase.from('profiles').select('id, email, rating, profile_hash').in('id', friendIds);
+        if (friendProfiles) setFriends(friendProfiles);
       } else {
-        setUser(null);
+        setFriends([]);
       }
-    };
-    checkUser();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => checkUser());
-    return () => authListener?.subscription?.unsubscribe();
-  }, []);
-
-  useEffect(() => setMobileOpen(false), [pathname, setMobileOpen]);
-
-  // PREVENT BACKGROUND SCROLLING & FIX SAFARI BOUNCE
-  useEffect(() => {
-    if (isMobileOpen) {
-      document.body.style.overflow = 'hidden';
-      // touch-none acts as a secondary failsafe for iOS background dragging
-      document.body.style.touchAction = 'none'; 
     } else {
-      document.body.style.overflow = '';
-      document.body.style.touchAction = '';
+      setUser(null);
     }
-    
-    return () => {
-      document.body.style.overflow = '';
-      document.body.style.touchAction = '';
-    };
-  }, [isMobileOpen]);
-
-  if (pathname === "/login" || pathname === "/update-password") return null;
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setMobileOpen(false);
-    router.push("/login");
+    setLoading(false);
   };
 
-  const navItems = [
-    { name: t('sidebar.dashboard'), path: '/dashboard' },
-    { name: t('sidebar.logMatch'), path: '/' },
-    { name: t('sidebar.events'), path: '/events' },
-  ];
+  const addFriend = async (e) => {
+    e.preventDefault();
+    if (!user) return;
+    setSearchLoading(true);
 
-  if (user) {
-    navItems.splice(2, 0, { name: t('sidebar.friends'), path: '/friends' });
-  }
+    const { data: friendProfile } = await supabase.from('profiles').select('id').eq('email', searchEmail.toLowerCase().trim()).single();
+    
+    if (!friendProfile) {
+      alert("User not found!");
+      setSearchLoading(false);
+      return;
+    }
+    if (friendProfile.id === user.id) {
+      alert("You cannot add yourself!");
+      setSearchLoading(false);
+      return;
+    }
+    if (friends.some(f => f.id === friendProfile.id)) {
+      alert("Already friends!");
+      setSearchLoading(false);
+      return;
+    }
 
-  if (userProfile.role === "admin") {
-    navItems.push({ name: t('sidebar.hostEvent'), path: '/events/create' });
-  }
+    const { error } = await supabase.from('friends').insert([{ user_id: user.id, friend_id: friendProfile.id }]);
+    
+    if (error) {
+      alert("Error adding friend.");
+    } else { 
+      alert("Success!"); 
+      setSearchEmail(""); 
+      loadFriends(); 
+    }
+    setSearchLoading(false);
+  };
+
+  const formatName = (email) => email ? email.split('@')[0] : t('common.guest');
+
+  if (loading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center font-bold text-zinc-500 bg-[#050507]">
+      <div className="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"></div>
+      {t('common.loading')}
+    </div>
+  );
+
+  if (!user) return (
+    <main className="min-h-screen flex items-center justify-center bg-[#050507] p-6 text-center">
+      <div className="glass-panel p-8 sm:p-12 rounded-[2.5rem] max-w-md w-full border border-white/5 bg-linear-to-br from-white/3 to-transparent">
+        <div className="w-20 h-20 glass-card rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-white/10">
+          <Users className="w-10 h-10 text-orange-500" />
+        </div>
+        <h2 className="text-3xl font-black text-white tracking-tighter mb-3">{t('friends.title')}</h2>
+        <p className="text-zinc-400 text-sm mb-8 leading-relaxed">
+          {t('profile.loginToAdd')}
+        </p>
+        <Link href="/login" className="w-full bg-orange-600 text-white font-black py-4 rounded-2xl text-lg hover:bg-orange-500 active:scale-95 transition-all shadow-[0_15px_40px_rgba(234,88,12,0.3)] flex justify-center items-center gap-2">
+          <LogIn className="w-5 h-5" /> Sign In to View Friends
+        </Link>
+      </div>
+    </main>
+  );
 
   return (
-    <>
-      {/* 📱 MOBILE: Top Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#050507]/90 backdrop-blur-xl border-b border-white/5 z-40 flex items-center justify-between px-5">
-        <Link href="/dashboard" className="text-xl font-black text-white tracking-tighter">
-          Chình
-        </Link>
+    <main 
+      className="min-h-screen px-4 py-6 md:p-8 w-full pb-24 overflow-y-auto overflow-x-hidden touch-pan-y bg-[#050507]" 
+      style={{ WebkitOverflowScrolling: 'touch' }}
+    >
+      <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
 
-        <button 
-          onClick={() => setMobileOpen(!isMobileOpen)}
-          className="w-10 h-10 flex flex-col justify-center items-end gap-1.5 focus:outline-none rounded-full bg-white/5 px-2.5 active:scale-95 transition-all border border-white/5"
-        >
-          <span className={`block h-0.5 bg-white transition-all duration-300 ${isMobileOpen ? 'w-5 rotate-45 translate-y-2' : 'w-5'}`}></span>
-          <span className={`block h-0.5 bg-white transition-all duration-300 ${isMobileOpen ? 'w-0 opacity-0' : 'w-4'}`}></span>
-          <span className={`block h-0.5 bg-white transition-all duration-300 ${isMobileOpen ? 'w-5 -rotate-45 -translate-y-2' : 'w-5'}`}></span>
-        </button>
-      </div>
-
-      {/* 📱 MOBILE: Sleek Slide-In Drawer */}
-      {isMobileOpen && (
-        <div className="md:hidden">
-          {/* Overlay using 100dvh to fix Safari gap */}
-          <div 
-            className="fixed top-0 left-0 w-full h-dvh z-100 bg-black/60 backdrop-blur-md animate-in fade-in duration-300 touch-none"
-            onClick={() => setMobileOpen(false)}
-          ></div>
+        <div className="glass-panel p-5 sm:p-8 rounded-4xl relative overflow-hidden group border border-white/5 bg-linear-to-br from-white/3 to-transparent">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-[100px] -mr-20 -mt-20 pointer-events-none group-hover:bg-orange-500/20 transition-all duration-700"></div>
           
-          {/* Drawer using 100dvh to stretch perfectly to the true bottom */}
-          <div className="fixed top-0 right-0 w-70 h-dvh bg-[#0a0a0c] z-101 flex flex-col shadow-2xl border-l border-white/5 animate-in slide-in-from-right duration-300">
-            
-            {/* Scrollable upper section (prevents squishing on small phones) */}
-            <div className="flex-1 overflow-y-auto pb-4">
-              <div className="p-6 border-b border-white/5 mb-2 bg-white/2">
-                {user ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 shrink-0 rounded-full bg-orange-500/20 border border-orange-500/50 flex items-center justify-center text-orange-400 font-black text-sm shadow-[0_0_10px_rgba(234,88,12,0.2)]">
-                      {user.email ? user.email.substring(0, 2).toUpperCase() : 'ME'}
+          <div className="relative z-10">
+            <form onSubmit={addFriend} className="flex flex-col md:flex-row gap-3 sm:gap-4">
+              <div className="relative flex-1">
+                <div className="absolute inset-y-0 left-0 pl-4 sm:pl-5 flex items-center pointer-events-none">
+                  <Search className="w-5 h-5 text-zinc-500" />
+                </div>
+                <input 
+                  type="email" 
+                  required 
+                  value={searchEmail} 
+                  onChange={(e) => setSearchEmail(e.target.value)} 
+                  placeholder={t('friends.searchPlaceholder')} 
+                  className="w-full h-14 sm:h-16 pl-12 sm:pl-14 pr-4 bg-black/40 border border-white/10 rounded-2xl text-white outline-none focus:border-orange-500/50 transition-all placeholder:text-zinc-600 shadow-inner text-base font-bold" 
+                />
+              </div>
+              <button 
+                type="submit" 
+                disabled={searchLoading || !searchEmail}
+                className="h-14 sm:h-16 whitespace-nowrap bg-orange-600 text-white font-black px-6 sm:px-8 rounded-2xl hover:bg-orange-500 active:scale-95 transition-all shadow-[0_10px_30px_rgba(234,88,12,0.3)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100"
+              >
+                {searchLoading ? (
+                  <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <UserPlus size={20} />
+                    {t('friends.addBtn')}
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <div className="glass-panel p-5 sm:p-8 rounded-4xl border border-white/5 bg-linear-to-br from-white/1 to-transparent shadow-2xl">
+          <h2 className="text-lg sm:text-xl font-black text-white mb-6 flex items-center gap-2">
+            {t('friends.myFriends')}
+          </h2>
+          
+          {friends.length === 0 ? (
+            <div className="py-12 text-center border border-dashed border-white/5 rounded-2xl bg-white/1">
+              <div className="w-16 h-16 glass-card rounded-full flex items-center justify-center mx-auto mb-4 border border-white/5">
+                <Users className="w-8 h-8 text-zinc-600" />
+              </div>
+              <p className="text-zinc-500 text-sm font-medium">{t('friends.noFriends')}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+              {friends.map((friend) => (
+                <Link 
+                  href={`/profile/${friend.profile_hash}`} 
+                  key={friend.id} 
+                  className="group flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/5 hover:bg-white/3 hover:border-orange-500/30 transition-all duration-300 cursor-pointer shadow-inner"
+                >
+                  <div className="flex items-center gap-4 overflow-hidden">
+                    <div className="w-12 h-12 shrink-0 rounded-full bg-black border border-white/10 flex items-center justify-center font-black text-sm text-zinc-400 shadow-inner group-hover:border-orange-500/50 group-hover:text-orange-400 transition-colors">
+                      {getInitials(friend.email)}
                     </div>
-                    <div className="flex flex-col overflow-hidden">
-                      <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Account</span>
-                      <span className="text-white font-bold text-sm truncate">{user.email}</span>
+                    <div className="flex flex-col truncate pr-2 justify-center">
+                      <span className="font-bold text-white truncate text-base sm:text-lg group-hover:text-orange-400 transition-colors">
+                        {formatName(friend.email)}
+                      </span>
                     </div>
                   </div>
-                ) : (
-                  <h2 className="text-2xl font-black text-white tracking-tighter">Chình</h2>
-                )}
-              </div>
-
-              <nav className="px-3 space-y-1">
-                {navItems.map((item) => {
-                  const isActive = pathname === item.path;
-                  return (
-                    <Link
-                      key={item.path}
-                      href={item.path}
-                      className={`block w-full px-5 py-4 text-sm font-bold rounded-2xl transition-all ${
-                        isActive 
-                          ? "text-orange-400 bg-orange-500/10 border border-orange-500/20 shadow-inner" 
-                          : "text-zinc-400 active:bg-white/5 active:text-white"
-                      }`}
-                    >
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </nav>
-            </div>
-
-            {/* Fixed Bottom Footer (Language & Sign Out) with safe-area padding */}
-            <div className="p-3 border-t border-white/5 space-y-1 bg-[#0a0a0c] shrink-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              <button 
-                onClick={toggleLanguage}
-                className="w-full flex justify-between items-center px-5 py-4 text-sm font-bold text-zinc-500 rounded-2xl active:bg-white/5 transition-colors"
-              >
-                <span>{t('sidebar.language')}</span>
-                <span className="text-orange-500 uppercase">{language || 'EN'}</span>
-              </button>
-              {user && (
-                <button 
-                  onClick={handleSignOut} 
-                  className="w-full text-left px-5 py-4 text-sm font-bold text-red-500/80 active:text-red-500 rounded-2xl active:bg-red-500/10 transition-colors"
-                >
-                  {t('sidebar.signOut')}
-                </button>
-              )}
-            </div>
-            
-          </div>
-        </div>
-      )}
-
-      {/* 💻 DESKTOP: Sidebar */}
-      <aside className="hidden md:flex flex-col justify-between w-64 h-screen sticky top-0 bg-[#0a0a0c]/80 backdrop-blur-3xl border-r border-white/5 shrink-0 overflow-hidden z-50">
-        <div className="absolute top-0 left-0 w-full h-32 bg-linear-to-b from-white/2 to-transparent pointer-events-none"></div>
-
-        <div className="pt-10 relative z-10">
-          <div className="px-8 mb-10">
-            <Link href="/dashboard" className="text-3xl font-black text-white tracking-tighter hover:text-zinc-300 transition-colors drop-shadow-md">
-              Chình
-            </Link>
-          </div>
-
-          <nav className="space-y-1.5 px-3">
-            {navItems.map((item) => {
-              const isActive = pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  href={item.path}
-                  className={`relative flex items-center w-full px-5 py-3 text-sm font-bold rounded-2xl transition-all duration-300 ${
-                    isActive 
-                      ? "text-white bg-white/10 shadow-sm border border-white/10" 
-                      : "text-zinc-500 hover:text-white hover:bg-white/5 border border-transparent"
-                  }`}
-                >
-                  <span className="tracking-wide">{item.name}</span>
+                  
+                  <div className="shrink-0 text-right">
+                    <span className="text-[9px] sm:text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-0.5">
+                      {t('common.rating')}
+                    </span>
+                    <span className="bg-orange-500/10 border border-orange-500/20 text-orange-400 font-black px-3 py-1.5 rounded-xl text-sm sm:text-base inline-block">
+                      {Number(friend.rating).toFixed(3)}
+                    </span>
+                  </div>
                 </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        <div className="p-3 space-y-1 relative z-10 mb-4">
-          <button 
-            onClick={toggleLanguage}
-            className="w-full flex justify-between items-center px-5 py-3 text-sm font-bold text-zinc-500 hover:text-white transition-colors rounded-2xl hover:bg-white/5"
-          >
-            <span className="tracking-wide">{t('sidebar.language')}</span>
-            <span className="text-orange-500 uppercase">{language || 'EN'}</span>
-          </button>
-          {user && (
-            <button 
-              onClick={handleSignOut} 
-              className="w-full text-left px-5 py-3 text-sm font-bold text-red-500/70 hover:text-red-500 transition-colors rounded-2xl hover:bg-red-500/10 tracking-wide"
-            >
-              {t('sidebar.signOut')}
-            </button>
+              ))}
+            </div>
           )}
         </div>
-      </aside>
-    </>
+
+      </div>
+    </main>
   );
 }

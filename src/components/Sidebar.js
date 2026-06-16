@@ -37,17 +37,20 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
   useEffect(() => setMobileOpen(false), [pathname, setMobileOpen]);
 
-  // PREVENT BACKGROUND SCROLLING WHEN MOBILE SIDEBAR IS OPEN
+  // PREVENT BACKGROUND SCROLLING & FIX SAFARI BOUNCE
   useEffect(() => {
     if (isMobileOpen) {
       document.body.style.overflow = 'hidden';
+      // touch-none acts as a secondary failsafe for iOS background dragging
+      document.body.style.touchAction = 'none'; 
     } else {
       document.body.style.overflow = '';
+      document.body.style.touchAction = '';
     }
     
-    // Cleanup function to ensure scrolling is re-enabled if component unmounts
     return () => {
       document.body.style.overflow = '';
+      document.body.style.touchAction = '';
     };
   }, [isMobileOpen]);
 
@@ -65,7 +68,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     { name: t('sidebar.events'), path: '/events' },
   ];
 
-  // Only show Friends and Host Event if the user is actively logged in
   if (user) {
     navItems.splice(2, 0, { name: t('sidebar.friends'), path: '/friends' });
   }
@@ -76,6 +78,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
   return (
     <>
+      {/* 📱 MOBILE: Top Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#050507]/90 backdrop-blur-xl border-b border-white/5 z-40 flex items-center justify-between px-5">
         <Link href="/dashboard" className="text-xl font-black text-white tracking-tighter">
           Chình
@@ -91,15 +94,20 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         </button>
       </div>
 
+      {/* 📱 MOBILE: Sleek Slide-In Drawer */}
       {isMobileOpen && (
-        <>
+        <div className="md:hidden">
+          {/* Overlay using 100dvh to fix Safari gap */}
           <div 
-            className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
+            className="fixed top-0 left-0 w-full h-dvh z-100 bg-black/60 backdrop-blur-md animate-in fade-in duration-300 touch-none"
             onClick={() => setMobileOpen(false)}
           ></div>
           
-          <div className="md:hidden fixed inset-y-0 right-0 w-70 bg-[#0a0a0c] z-50 flex flex-col justify-between shadow-2xl border-l border-white/5 animate-in slide-in-from-right duration-300">
-            <div>
+          {/* Drawer using 100dvh to stretch perfectly to the true bottom */}
+          <div className="fixed top-0 right-0 w-70 h-dvh bg-[#0a0a0c] z-101 flex flex-col shadow-2xl border-l border-white/5 animate-in slide-in-from-right duration-300">
+            
+            {/* Scrollable upper section (prevents squishing on small phones) */}
+            <div className="flex-1 overflow-y-auto pb-4">
               <div className="p-6 border-b border-white/5 mb-2 bg-white/2">
                 {user ? (
                   <div className="flex items-center gap-3">
@@ -136,7 +144,8 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               </nav>
             </div>
 
-            <div className="p-3 border-t border-white/5 space-y-1">
+            {/* Fixed Bottom Footer (Language & Sign Out) with safe-area padding */}
+            <div className="p-3 border-t border-white/5 space-y-1 bg-[#0a0a0c] shrink-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <button 
                 onClick={toggleLanguage}
                 className="w-full flex justify-between items-center px-5 py-4 text-sm font-bold text-zinc-500 rounded-2xl active:bg-white/5 transition-colors"
@@ -153,11 +162,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 </button>
               )}
             </div>
+            
           </div>
-        </>
+        </div>
       )}
 
-      {/* 💻 DESKTOP SIDEBAR - Layout Fixed (No gap on left) */}
+      {/* 💻 DESKTOP: Sidebar */}
       <aside className="hidden md:flex flex-col justify-between w-64 h-screen sticky top-0 bg-[#0a0a0c]/80 backdrop-blur-3xl border-r border-white/5 shrink-0 overflow-hidden z-50">
         <div className="absolute top-0 left-0 w-full h-32 bg-linear-to-b from-white/2 to-transparent pointer-events-none"></div>
 
