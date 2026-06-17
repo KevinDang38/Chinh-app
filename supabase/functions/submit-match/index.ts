@@ -23,7 +23,6 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Verify Authentication
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     if (authError || !user) throw new Error('Unauthorized');
 
@@ -34,7 +33,6 @@ serve(async (req: Request) => {
 
     if (scoreA === undefined || scoreB === undefined) throw new Error('Scores are required');
 
-    // Fetch all profiles involved
     const playerIds = [playerAId, partnerId, opp1Id, opp2Id].filter(Boolean);
     const { data: profiles, error: profileError } = await supabaseAdmin
       .from('profiles')
@@ -57,11 +55,9 @@ serve(async (req: Request) => {
     const teamARating = matchType === '2v2' ? (pA + pB) / 2 : pA;
     const teamBRating = matchType === '2v2' ? (o1 + o2) / 2 : o1;
 
-    // Expected Probabilities
     const expectedPerformanceA = 1 / (1 + Math.pow(10, (teamBRating - teamARating) / 1.0));
     const expectedPerformanceB = 1 / (1 + Math.pow(10, (teamARating - teamBRating) / 1.0));
     
-    // Actual Points Blend
     const totalPoints = scoreA + scoreB;
     const actualPointsPctA = scoreA / totalPoints;
     const actualPointsPctB = scoreB / totalPoints;
@@ -87,10 +83,9 @@ serve(async (req: Request) => {
     const kA = await getKFactor(playerAId);
     const ratingChangeA = kA * (actualPerformanceA - expectedPerformanceA);
 
+    // FIX: Removed the invalid schema update here!
     if (isLive && lobbyPin) {
       await supabaseAdmin.from('match_lobbies').update({ 
-        player_a_score: scoreA, 
-        player_b_score: scoreB, 
         status: 'completed' 
       }).eq('pin', lobbyPin);
     }

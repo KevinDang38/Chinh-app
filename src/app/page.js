@@ -176,12 +176,51 @@ export default function Home() {
   const [showGuestPrompt, setShowGuestPrompt] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // NEW: State for guest handling
+  const [finalMatchDetails, setFinalMatchDetails] = useState(null);
+  const [guestSlot, setGuestSlot] = useState(null);
+
   useEffect(() => {
+    // NEW: Post-Login Claim Logic
+    const handlePendingClaim = async (userId) => {
+      const claim = localStorage.getItem('pendingClaim');
+      if (claim) {
+        try {
+          const { matchId, mySlot } = JSON.parse(claim);
+          localStorage.removeItem('pendingClaim');
+
+          // 1. Register Guest to the Match
+          await supabase.from('matches').update({ [mySlot]: userId }).eq('id', matchId);
+
+          // 2. Fetch data to apply a simple DUPR win/loss modifier
+          const { data: match } = await supabase.from('matches').select('*').eq('id', matchId).single();
+          const { data: prof } = await supabase.from('profiles').select('rating').eq('id', userId).single();
+
+          if (match && prof) {
+              const isTeamA = mySlot === 'player_a_id' || mySlot === 'team_a_player2_id';
+              const isWinner = isTeamA ? match.player_a_score > match.player_b_score : match.player_b_score > match.player_a_score;
+              
+              // Claiming a match calculates a simplified K-Factor rating update for the newly registered user
+              const change = isWinner ? 0.05 : -0.05;
+              const newRating = (Number(prof.rating) + change).toFixed(3);
+              
+              await supabase.from('profiles').update({ rating: Number(newRating) }).eq('id', userId);
+              alert(`Match successfully claimed! Your new rating is ${newRating}`);
+          }
+        } catch (e) {
+          console.error("Failed to claim match", e);
+        }
+      }
+    };
+
     const fetchData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const userId = session.user.id;
         setUser(session.user);
+        
+        await handlePendingClaim(userId);
+
         const { data: userProfile } = await supabase.from('profiles').select('rating').eq('id', userId).single();
         if (userProfile) setProfile(userProfile);
 
@@ -216,6 +255,20 @@ export default function Home() {
           setLobbyState(null);
           setIsJoined(false);
           setPendingJoinLobby(null);
+          setFinalMatchDetails(null);
+        }
+
+        // NEW: When the Host submits, ping the matches table to retrieve the exact scores!
+        if (payload.new.status === 'completed' && viewMode === 'join') {
+            setTimeout(async () => {
+                const { data } = await supabase.from('matches')
+                  .select('*')
+                  .eq('player_a_id', payload.new.host_id)
+                  .order('created_at', { ascending: false })
+                  .limit(1)
+                  .single();
+                if (data) setFinalMatchDetails(data);
+            }, 1000);
         }
       }).subscribe();
 
@@ -290,6 +343,7 @@ export default function Home() {
       if (!lobby.team_b_player1_id) {
           completeJoin(lobby.pin, 'team_b_player1_id', lobby);
       } else {
+          setGuestSlot('team_b_player1_id');
           setLobbyPin(joinPinInput);
           setLobbyState(lobby); 
           setIsJoined(true); 
@@ -302,6 +356,8 @@ export default function Home() {
   const completeJoin = async (pin, slot, lobbyData) => {
     if (user) {
         await supabase.from('match_lobbies').update({ [slot]: user.id }).eq('pin', pin);
+    } else {
+        setGuestSlot(slot); // Save which slot the guest picked to claim it later
     }
     setLobbyPin(pin);
     if (lobbyData) setLobbyState(lobbyData);
@@ -312,9 +368,15 @@ export default function Home() {
 
   const handleGuestApprove = () => {
     if (!user) {
+        if (finalMatchDetails && guestSlot) {
+            localStorage.setItem('pendingClaim', JSON.stringify({
+                matchId: finalMatchDetails.id,
+                mySlot: guestSlot
+            }));
+        }
         setShowGuestPrompt(true);
     } else {
-        alert(t('alerts.matchSubmitted'));
+        alert(t('alerts.matchSubmitted') || "Match approved!");
         window.location.href = "/dashboard";
     }
   };
@@ -337,7 +399,6 @@ export default function Home() {
     setIsSubmitting(true);
 
     try {
-      // Securely invoke the Edge Function
       const { data, error } = await supabase.functions.invoke('submit-match', {
         body: {
           isLive,
@@ -469,7 +530,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                <button onClick={requireAuth((e) => submitMatch(e, false))} disabled={isSubmitting} className="w-full h-12 bg-orange-600 text-white font-bold rounded-xl text-base hover:bg-orange-500 active:scale-95 transition-all shadow-[0_8px_20px_rgba(234,88,12,0.25)] disabled:opacity-50 flex items-center justify-center gap-2 mt-2">
+                <button onClick={requireAuth((e) => submitMatch(e, false))} disabled={isSubmitting} className="w-full h-12 bg-orange-600 text-white font-bold rounded-xl text-base hover:bg-orange-500 active:scale-95 transition-all shadow-[0_8px_20px_rgba(234,88,12,0.25)] flex items-center justify-center gap-2 mt-2">
                   {isSubmitting ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : <><Trophy size={18} /> {t('logMatch.submit')}</>}
                 </button>
               </motion.div>
@@ -563,7 +624,7 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <button onClick={requireAuth((e) => submitMatch(e, true))} disabled={isSubmitting} className="w-full h-12 bg-orange-600 text-white font-bold rounded-xl text-base hover:bg-orange-500 active:scale-95 transition-all shadow-[0_8px_20px_rgba(234,88,12,0.25)] disabled:opacity-50 flex items-center justify-center gap-2">
+                    <button onClick={requireAuth((e) => submitMatch(e, true))} disabled={isSubmitting} className="w-full h-12 bg-orange-600 text-white font-bold rounded-xl text-base hover:bg-orange-500 active:scale-95 transition-all shadow-[0_8px_20px_rgba(234,88,12,0.25)] flex items-center justify-center gap-2">
                       {isSubmitting ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : <><Trophy size={18} /> {t('logMatch.submit')}</>}
                     </button>
 
@@ -657,7 +718,7 @@ export default function Home() {
                             <LivePlayerRow title={t('logMatch.teamA')} playerId={lobbyState.host_id} color="orange" lobbyPlayers={lobbyPlayers} t={t} />
                          </div>
                          <div className={`w-16 h-16 flex items-center justify-center text-3xl font-black bg-black border rounded-xl shadow-inner ${lobbyState.status === 'completed' ? 'text-orange-400 border-orange-500/50' : 'text-zinc-500 border-white/10'}`}>
-                            {lobbyState.status === 'completed' ? lobbyState.player_a_score : '-'}
+                            {lobbyState.status === 'completed' && finalMatchDetails ? finalMatchDetails.player_a_score : '-'}
                          </div>
                       </div>
                       
@@ -666,12 +727,12 @@ export default function Home() {
                             <LivePlayerRow title={t('logMatch.teamB')} playerId={lobbyState.team_b_player1_id} color="blue" lobbyPlayers={lobbyPlayers} t={t} />
                          </div>
                          <div className={`w-16 h-16 flex items-center justify-center text-3xl font-black bg-black border rounded-xl shadow-inner ${lobbyState.status === 'completed' ? 'text-blue-400 border-blue-500/50' : 'text-zinc-500 border-white/10'}`}>
-                            {lobbyState.status === 'completed' ? lobbyState.player_b_score : '-'}
+                            {lobbyState.status === 'completed' && finalMatchDetails ? finalMatchDetails.player_b_score : '-'}
                          </div>
                       </div>
                     </div>
 
-                    {lobbyState.status === 'completed' ? (
+                    {lobbyState.status === 'completed' && finalMatchDetails ? (
                        <button onClick={handleGuestApprove} className="w-full h-12 bg-green-600 text-white font-bold rounded-xl text-base hover:bg-green-500 active:scale-95 transition-all shadow-[0_8px_20px_rgba(22,163,74,0.25)] flex items-center justify-center gap-2">
                          <Check className="w-5 h-5" /> Approve & Save Match
                        </button>
