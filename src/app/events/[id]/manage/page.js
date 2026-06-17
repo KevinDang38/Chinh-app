@@ -70,7 +70,6 @@ export default function ManageEvent() {
     }
   }
 
-  // NEW: Function to officially close the tournament
   const handleCompleteTournament = async () => {
     if(!confirm("Are you sure you want to end this tournament? This will freeze the bracket permanently.")) return;
     await supabase.from('events').update({ event_status: 'completed' }).eq('id', id);
@@ -102,85 +101,84 @@ export default function ManageEvent() {
     setIsSubmittingScore(false);
   };
 
-  if (loading) return <div className="min-h-screen bg-black text-white flex justify-center items-center">Loading Secure Manager...</div>;
+  if (loading) return <div className="min-h-screen bg-[#050507] text-white flex justify-center items-center">Loading Secure Manager...</div>;
 
   const isTournamentFinished = event.event_status === 'completed';
 
   return (
-    <main className="min-h-screen bg-black p-4 md:p-8 w-full overflow-hidden relative">
+    <main className="min-h-screen bg-[#050507] p-4 md:p-8 w-full overflow-hidden relative">
       <div className="max-w-6xl mx-auto h-full flex flex-col">
         
         {/* DASHBOARD HEADER */}
-        <div className="bg-zinc-900 p-8 rounded-3xl border border-zinc-800 mb-8 shrink-0 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="bg-[#0a0a0c] p-6 rounded-2xl border border-white/5 mb-6 shrink-0 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-xl">
           <div>
-            <h1 className="text-3xl font-extrabold text-white mb-2">Secure Director Dashboard</h1>
-            <div className="flex items-center gap-3">
-              <p className="text-orange-500 font-bold">{event.title}</p>
-              {isTournamentFinished && <span className="bg-zinc-800 text-zinc-400 text-xs px-2 py-1 rounded font-black tracking-widest uppercase">COMPLETED</span>}
+            <h1 className="text-2xl font-black text-white mb-1">Secure Director Dashboard</h1>
+            <div className="flex items-center gap-2">
+              <p className="text-orange-500 font-bold text-sm">{event.title}</p>
+              {isTournamentFinished && <span className="bg-zinc-800 text-zinc-400 text-[10px] px-2 py-0.5 rounded font-black tracking-widest uppercase">COMPLETED</span>}
             </div>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
             {event.event_status === 'live' && (
-              <button onClick={handleCompleteTournament} className="bg-red-500/10 text-red-500 border border-red-500/20 px-6 py-3 rounded-xl font-bold transition hover:bg-red-500 hover:text-white w-full md:w-auto">
+              <button onClick={handleCompleteTournament} className="h-12 bg-red-500/10 text-red-500 border border-red-500/20 px-6 rounded-xl font-bold text-sm transition hover:bg-red-500 hover:text-white w-full md:w-auto">
                 End Tournament
               </button>
             )}
-            <button onClick={() => router.push(`/events/${id}`)} className="bg-zinc-800 text-white px-6 py-3 rounded-xl font-bold transition hover:bg-zinc-700 w-full md:w-auto">
+            <button onClick={() => router.push(`/events/${id}`)} className="h-12 bg-zinc-800 text-white px-6 rounded-xl font-bold text-sm transition hover:bg-zinc-700 w-full md:w-auto">
               Exit to Public
             </button>
           </div>
         </div>
 
         {realBracketData.length === 0 ? (
-            <div className="bg-zinc-900 p-12 rounded-3xl border border-zinc-800 text-center">
-                <h2 className="text-2xl font-black text-white mb-4">Bracket Not Generated Yet</h2>
-                <p className="text-zinc-400 mb-8">Run the math engine to automatically pair players based on the locked seeds.</p>
-                <button onClick={handleRunEngine} className="bg-orange-600 text-white font-extrabold px-8 py-4 rounded-xl hover:bg-orange-500 shadow-lg shadow-orange-900/50">Run Math Engine & Generate Bracket</button>
+            <div className="bg-[#0a0a0c] p-10 rounded-2xl border border-white/5 text-center shadow-xl">
+                <h2 className="text-xl font-black text-white mb-2">Bracket Not Generated Yet</h2>
+                <p className="text-sm text-zinc-400 mb-6">Run the math engine to automatically pair players based on the locked seeds.</p>
+                <button onClick={handleRunEngine} className="h-12 bg-orange-600 text-white font-bold text-base px-8 rounded-xl hover:bg-orange-500 shadow-[0_8px_20px_rgba(234,88,12,0.25)]">Run Math Engine & Generate Bracket</button>
             </div>
         ) : (
             <div className="flex-1 flex flex-col h-full w-full">
-            <div className="flex bg-zinc-950 rounded-xl p-1 mb-6 border border-zinc-800 w-fit">
-                <button onClick={() => setBracketViewMode('rounds')} className={`px-6 py-2 rounded-lg font-bold text-sm ${bracketViewMode === 'rounds' ? 'bg-zinc-800 text-orange-500' : 'text-zinc-500'}`}>📋 Tabbed Input View</button>
-                <button onClick={() => setBracketViewMode('tree')} className={`px-6 py-2 rounded-lg font-bold text-sm ${bracketViewMode === 'tree' ? 'bg-zinc-800 text-white' : 'text-zinc-500'}`}>🌳 Visual Tree</button>
+            <div className="flex bg-black/40 rounded-xl p-1 mb-5 border border-white/5 w-fit">
+                <button onClick={() => setBracketViewMode('rounds')} className={`px-5 h-10 rounded-lg font-bold text-xs transition-colors ${bracketViewMode === 'rounds' ? 'bg-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>📋 Tabbed Input View</button>
+                <button onClick={() => setBracketViewMode('tree')} className={`px-5 h-10 rounded-lg font-bold text-xs transition-colors ${bracketViewMode === 'tree' ? 'bg-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>🌳 Visual Tree</button>
             </div>
 
             {bracketViewMode === 'tree' ? (
-                <div className="flex-1 bg-[#09090b] rounded-2xl border border-zinc-800 overflow-auto relative min-h-125 p-8 custom-scrollbar">
+                <div className="flex-1 bg-black/40 rounded-2xl border border-white/5 overflow-auto relative min-h-125 p-6 custom-scrollbar shadow-inner">
                 <div className="inline-block" style={{ minWidth: '1200px' }}>
                     <SingleEliminationBracket matches={realBracketData} matchComponent={Match} theme={myDarkTheme} />
                 </div>
                 </div>
             ) : (
                 <div className="flex flex-col flex-1 overflow-hidden">
-                <div className="flex gap-2 overflow-x-auto pb-4 mb-4 border-b border-zinc-800 custom-scrollbar">
+                <div className="flex gap-2 overflow-x-auto pb-4 mb-2 border-b border-white/5 custom-scrollbar">
                     {Array.from({ length: totalRealRounds }).map((_, i) => (
-                    <button key={i+1} onClick={() => setSelectedRound(i+1)} className={`px-5 py-2.5 rounded-xl font-bold text-sm border ${selectedRound === i+1 ? 'bg-orange-600 text-white border-orange-500' : 'bg-zinc-950 text-zinc-400 border-zinc-800'}`}>Round {i+1}</button>
+                    <button key={i+1} onClick={() => setSelectedRound(i+1)} className={`px-5 h-10 rounded-lg font-bold text-xs transition-all border ${selectedRound === i+1 ? 'bg-white text-black border-white shadow-[0_0_10px_rgba(255,255,255,0.2)]' : 'bg-black/40 text-zinc-400 border-white/10 hover:text-white hover:bg-white/10'}`}>Round {i+1}</button>
                     ))}
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pb-12 custom-scrollbar">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pb-12 pt-2 custom-scrollbar">
                     {realBracketData.filter(m => m.roundNumber === selectedRound).map((match, idx) => {
                     const isReady = match.participants[0].name !== 'TBD' && match.participants[1].name !== 'TBD';
                     const isComplete = match.state === 'DONE';
                     
                     return (
-                        <div key={match.id} className={`p-5 rounded-2xl flex flex-col gap-3 border ${isComplete ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-950 border-zinc-700'}`}>
-                        <div className="flex justify-between items-center border-b border-zinc-800 pb-3 mb-1">
-                            <p className="text-xs font-black text-zinc-500">MATCH {idx + 1}</p>
+                        <div key={match.id} className={`p-4 rounded-2xl flex flex-col gap-2.5 border ${isComplete ? 'bg-black/60 border-white/5 shadow-inner' : 'bg-[#0a0a0c] border-white/10 shadow-lg'}`}>
+                        <div className="flex justify-between items-center border-b border-white/5 pb-2.5 mb-1">
+                            <p className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">MATCH {idx + 1}</p>
                             {isComplete ? (
-                                <span className="text-[10px] bg-green-500/10 text-green-500 font-bold px-2 py-1 rounded">COMPLETED</span>
+                                <span className="text-[9px] bg-green-500/10 text-green-500 font-bold px-2 py-0.5 rounded tracking-widest uppercase">COMPLETED</span>
                             ) : (
                                 <button 
-                                  // NEW: Disabled if event is fully completed!
                                   disabled={!isReady || isTournamentFinished} 
                                   onClick={() => setScoreModal({ isOpen: true, match, scoreA: '', scoreB: '' })} 
-                                  className="text-xs bg-zinc-800 text-white px-3 py-1 rounded hover:bg-orange-600 font-bold disabled:opacity-50 transition"
+                                  className="text-[10px] bg-white/5 text-white px-3 py-1.5 rounded-lg hover:bg-orange-600 font-bold uppercase tracking-widest disabled:opacity-50 transition border border-white/10"
                                 >
                                   Input Score
                                 </button>
                             )}
                         </div>
-                        <div className={`flex justify-between items-center px-4 py-3 rounded-xl border ${match.participants[0].isWinner ? 'bg-orange-500/10 border-orange-500/30' : 'bg-zinc-900 border-zinc-800'}`}><span className="font-bold text-white truncate pr-2">{match.participants[0].name}</span><span className="font-black text-lg text-zinc-300">{match.participants[0].score || '-'}</span></div>
-                        <div className={`flex justify-between items-center px-4 py-3 rounded-xl border ${match.participants[1].isWinner ? 'bg-orange-500/10 border-orange-500/30' : 'bg-zinc-900 border-zinc-800'}`}><span className="font-bold text-white truncate pr-2">{match.participants[1].name}</span><span className="font-black text-lg text-zinc-300">{match.participants[1].score || '-'}</span></div>
+                        <div className={`flex justify-between items-center px-3 py-2.5 rounded-xl border ${match.participants[0].isWinner ? 'bg-orange-500/10 border-orange-500/30' : 'bg-black/40 border-white/5'}`}><span className={`font-bold text-sm truncate pr-2 ${match.participants[0].isWinner ? 'text-orange-400' : 'text-zinc-300'}`}>{match.participants[0].name}</span><span className="font-black text-base text-white">{match.participants[0].score || '-'}</span></div>
+                        <div className={`flex justify-between items-center px-3 py-2.5 rounded-xl border ${match.participants[1].isWinner ? 'bg-orange-500/10 border-orange-500/30' : 'bg-black/40 border-white/5'}`}><span className={`font-bold text-sm truncate pr-2 ${match.participants[1].isWinner ? 'text-orange-400' : 'text-zinc-300'}`}>{match.participants[1].name}</span><span className="font-black text-base text-white">{match.participants[1].score || '-'}</span></div>
                         </div>
                     );
                     })}
@@ -193,20 +191,20 @@ export default function ManageEvent() {
 
       {scoreModal.isOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 w-full max-w-md shadow-2xl">
-            <h2 className="text-2xl font-black text-white mb-6 text-center">Record Score</h2>
-            <form onSubmit={handleScoreSubmit} className="space-y-6">
-              <div className="flex justify-between items-center gap-4 bg-zinc-950 p-4 rounded-2xl border border-zinc-800">
-                <span className="font-bold text-white flex-1 truncate">{scoreModal.match.participants[0].name}</span>
-                <input required type="number" min="0" value={scoreModal.scoreA} onChange={(e) => setScoreModal({...scoreModal, scoreA: e.target.value})} className="w-20 bg-zinc-900 border border-zinc-700 rounded-xl text-center text-xl font-black text-white py-2" placeholder="0"/>
+          <div className="bg-[#0a0a0c] border border-white/10 rounded-4xl p-6 w-full max-w-sm shadow-2xl">
+            <h2 className="text-xl font-black text-white mb-6 text-center">Record Score</h2>
+            <form onSubmit={handleScoreSubmit} className="space-y-4">
+              <div className="flex justify-between items-center gap-3 bg-black/40 p-3 rounded-xl border border-white/5 shadow-inner">
+                <span className="font-bold text-sm text-zinc-300 flex-1 truncate">{scoreModal.match.participants[0].name}</span>
+                <input required type="number" min="0" value={scoreModal.scoreA} onChange={(e) => setScoreModal({...scoreModal, scoreA: e.target.value})} className="w-16 h-12 bg-black border border-white/10 rounded-lg text-center text-lg font-black text-white focus:border-orange-500/50 outline-none" placeholder="0"/>
               </div>
-              <div className="flex justify-between items-center gap-4 bg-zinc-950 p-4 rounded-2xl border border-zinc-800">
-                <span className="font-bold text-white flex-1 truncate">{scoreModal.match.participants[1].name}</span>
-                <input required type="number" min="0" value={scoreModal.scoreB} onChange={(e) => setScoreModal({...scoreModal, scoreB: e.target.value})} className="w-20 bg-zinc-900 border border-zinc-700 rounded-xl text-center text-xl font-black text-white py-2" placeholder="0"/>
+              <div className="flex justify-between items-center gap-3 bg-black/40 p-3 rounded-xl border border-white/5 shadow-inner">
+                <span className="font-bold text-sm text-zinc-300 flex-1 truncate">{scoreModal.match.participants[1].name}</span>
+                <input required type="number" min="0" value={scoreModal.scoreB} onChange={(e) => setScoreModal({...scoreModal, scoreB: e.target.value})} className="w-16 h-12 bg-black border border-white/10 rounded-lg text-center text-lg font-black text-white focus:border-orange-500/50 outline-none" placeholder="0"/>
               </div>
-              <div className="grid grid-cols-2 gap-4 pt-4">
-                <button type="button" onClick={() => setScoreModal({ isOpen: false, match: null, scoreA: '', scoreB: '' })} className="py-3 rounded-xl font-bold bg-zinc-800 text-white hover:bg-zinc-700 transition">Cancel</button>
-                <button type="submit" disabled={isSubmittingScore} className="py-3 rounded-xl font-black bg-orange-600 text-white disabled:opacity-50 hover:bg-orange-500 transition">Submit</button>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button type="button" onClick={() => setScoreModal({ isOpen: false, match: null, scoreA: '', scoreB: '' })} className="h-12 rounded-xl font-bold text-sm bg-white/5 border border-white/10 text-white hover:bg-white/10 transition">Cancel</button>
+                <button type="submit" disabled={isSubmittingScore} className="h-12 rounded-xl font-bold text-sm bg-orange-600 text-white disabled:opacity-50 hover:bg-orange-500 transition shadow-[0_8px_20px_rgba(234,88,12,0.25)]">Submit</button>
               </div>
             </form>
           </div>

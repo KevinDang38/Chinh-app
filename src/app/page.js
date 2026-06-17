@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useLanguage } from "../context/LanguageContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Users, Trophy, Plus } from "lucide-react";
+import { User, Users, Trophy, Plus, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const formatName = (email, t) => {
   if (!email) return t('common.guest');
@@ -22,7 +23,7 @@ const PlayerRowDisplay = ({ player, label, color, currentUser, t }) => {
         {player === 'YOU' ? 'ME' : getInitials(player?.email)}
       </div>
       <div className="flex flex-col overflow-hidden w-full text-left">
-        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">{label}</span>
+        <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">{label}</span>
         <span className="text-white font-bold text-sm truncate">
           {player === 'YOU' ? formatName(currentUser?.email, t) : formatName(player?.email, t)}
         </span>
@@ -44,7 +45,7 @@ const LivePlayerRow = ({ title, playerId, color, lobbyPlayers, t }) => {
             {getInitials(p.email)}
           </div>
           <div className="flex flex-col overflow-hidden w-full text-left">
-            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">{title}</span>
+            <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">{title}</span>
             <span className="text-white font-bold text-sm truncate">{formatName(p.email, t)}</span>
           </div>
         </>
@@ -52,7 +53,7 @@ const LivePlayerRow = ({ title, playerId, color, lobbyPlayers, t }) => {
         <>
           <div className="w-10 h-10 shrink-0 rounded-full border border-dashed border-zinc-700 flex items-center justify-center animate-spin-slow bg-white/5"></div>
           <div className="flex flex-col overflow-hidden w-full text-left">
-            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">{title}</span>
+            <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">{title}</span>
             <span className="text-zinc-500 font-bold text-sm truncate animate-pulse">{t('common.waiting')}</span>
           </div>
         </>
@@ -73,14 +74,14 @@ const JoinSlotButton = ({ title, playerId, color, onClick, t }) => {
       <button 
           onClick={onClick} 
           disabled={isTaken}
-          className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${!isTaken && 'active:scale-95'} ${isTaken ? takenClass : activeClass}`}
+          className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${!isTaken && 'active:scale-95'} ${isTaken ? takenClass : activeClass}`}
       >
           <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-xs border shadow-inner ${isTaken ? 'border-zinc-800 bg-zinc-900' : (isOrange ? 'border-orange-500/50 bg-black' : 'border-blue-500/50 bg-black')}`}>
                   {isTaken ? <User size={16} /> : <Plus size={16} />}
               </div>
               <div className="flex flex-col items-start">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{title}</span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">{title}</span>
                   <span className={`font-bold text-sm ${isTaken ? 'text-zinc-600' : 'text-white'}`}>{isTaken ? t('logMatch.taken') : t('logMatch.joinBtn')}</span>
               </div>
           </div>
@@ -98,7 +99,7 @@ const SmartScoreInput = ({ score, setScore, color }) => {
       maxLength={2}
       value={score} 
       onChange={(e) => setScore(e.target.value.replace(/\D/g, ''))} 
-      className={`w-20 h-20 shrink-0 text-center text-4xl font-black bg-black/40 border border-white/10 rounded-2xl outline-none transition-all shadow-inner ${activeBorder}`}
+      className={`w-16 h-16 shrink-0 text-center text-3xl font-black bg-black/40 border border-white/10 rounded-xl outline-none transition-all shadow-inner ${activeBorder}`}
     />
   );
 };
@@ -111,12 +112,12 @@ const PlayerChipSelector = ({ title, selected, onChange, excludeIds = [], color,
 
   return (
     <div className="mt-4 text-left">
-      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 pl-1">{title}</p>
+      <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-2 pl-1">{title}</p>
       <div className="flex flex-wrap gap-2">
         <button 
           type="button" 
           onClick={() => onChange(null)} 
-          className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${!selected ? activeClass : inactiveClass}`}
+          className={`px-4 h-10 rounded-lg text-xs font-bold border transition-all ${!selected ? activeClass : inactiveClass}`}
         >
           {t('common.guest')}
         </button>
@@ -129,7 +130,7 @@ const PlayerChipSelector = ({ title, selected, onChange, excludeIds = [], color,
               key={f.id} 
               type="button" 
               onClick={() => onChange(f)} 
-              className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${isSelected ? activeClass : inactiveClass}`}
+              className={`px-4 h-10 rounded-lg text-xs font-bold border transition-all ${isSelected ? activeClass : inactiveClass}`}
             >
               {formatName(f.email, t)}
             </button>
@@ -150,6 +151,7 @@ const pageTransition = { duration: 0.3, ease: "easeOut" };
 
 export default function Home() {
   const { t } = useLanguage();
+  const router = useRouter();
 
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState({ rating: 3.5 });
@@ -170,6 +172,9 @@ export default function Home() {
   const [joinPinInput, setJoinPinInput] = useState("");
   const [isJoined, setIsJoined] = useState(false);
   const [pendingJoinLobby, setPendingJoinLobby] = useState(null); 
+  
+  const [showGuestPrompt, setShowGuestPrompt] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -205,11 +210,6 @@ export default function Home() {
         setLobbyState(payload.new);
         if (pendingJoinLobby) setPendingJoinLobby(payload.new);
         
-        if (payload.new.status === 'completed' && viewMode === 'join') {
-          alert(t('alerts.matchSubmitted'));
-          window.location.href = "/dashboard";
-        }
-
         if (payload.new.status === 'cancelled' && viewMode === 'join') {
           alert(t('alerts.lobbyCancelled'));
           setLobbyPin(null);
@@ -245,8 +245,16 @@ export default function Home() {
     }
   };
 
+  const requireAuth = (action) => (e) => {
+    if (e) e.preventDefault();
+    if (!user) {
+      setShowGuestPrompt(true);
+      return;
+    }
+    action(e);
+  };
+
   const hostLobby = async () => {
-    if (!user) return;
     const newPin = Math.floor(1000 + Math.random() * 9000).toString();
     const { data } = await supabase.from('match_lobbies').insert([{ pin: newPin, host_id: user.id, match_type: matchType }]).select().single();
     setLobbyPin(newPin);
@@ -266,37 +274,52 @@ export default function Home() {
 
   const joinLobby = async (e) => {
     e.preventDefault();
-    if (!user) return;
     const { data: lobby } = await supabase.from('match_lobbies').select('*').eq('pin', joinPinInput).eq('status', 'waiting').single();
     if (!lobby) return alert(t('alerts.invalidPin'));
 
-    if (user.id === lobby.host_id) return alert(t('alerts.alreadyHost'));
+    if (user && user.id === lobby.host_id) return alert(t('alerts.alreadyHost'));
 
-    if (user.id === lobby.team_a_player2_id || user.id === lobby.team_b_player1_id || user.id === lobby.team_b_player2_id) {
+    if (user && (user.id === lobby.team_a_player2_id || user.id === lobby.team_b_player1_id || user.id === lobby.team_b_player2_id)) {
       setLobbyPin(joinPinInput);
+      setLobbyState(lobby);
       setIsJoined(true);
       return;
     }
 
     if (lobby.match_type === '1v1') {
-      if (!lobby.team_b_player1_id) completeJoin(lobby.pin, 'team_b_player1_id');
-      else alert(t('alerts.lobbyFull'));
+      if (!lobby.team_b_player1_id) {
+          completeJoin(lobby.pin, 'team_b_player1_id', lobby);
+      } else {
+          setLobbyPin(joinPinInput);
+          setLobbyState(lobby); 
+          setIsJoined(true); 
+      }
     } else {
       setPendingJoinLobby(lobby); 
     }
   };
 
-  const completeJoin = async (pin, slot) => {
-    await supabase.from('match_lobbies').update({ [slot]: user.id }).eq('pin', pin);
+  const completeJoin = async (pin, slot, lobbyData) => {
+    if (user) {
+        await supabase.from('match_lobbies').update({ [slot]: user.id }).eq('pin', pin);
+    }
     setLobbyPin(pin);
+    if (lobbyData) setLobbyState(lobbyData);
+    else if (pendingJoinLobby) setLobbyState(pendingJoinLobby);
     setPendingJoinLobby(null);
     setIsJoined(true);
   };
 
-  const submitMatch = async (e, isLive = false) => {
-    e.preventDefault();
-    if (!user) return;
+  const handleGuestApprove = () => {
+    if (!user) {
+        setShowGuestPrompt(true);
+    } else {
+        alert(t('alerts.matchSubmitted'));
+        window.location.href = "/dashboard";
+    }
+  };
 
+  const submitMatch = async (e, isLive = false) => {
     const scoreA = Number(teamAScore);
     const scoreB = Number(teamBScore);
     
@@ -311,90 +334,54 @@ export default function Home() {
       return alert(t('alerts.invalidPickleballScore'));
     }
 
-    let K_FACTOR = 0.1; 
+    setIsSubmitting(true);
 
-    const { count: userMatchCount, error: countError } = await supabase
-      .from('matches')
-      .select('*', { count: 'exact', head: true })
-      .or(`player_a_id.eq.${user.id},team_a_player2_id.eq.${user.id},team_b_player1_id.eq.${user.id},team_b_player2_id.eq.${user.id}`);
+    try {
+      // Securely invoke the Edge Function
+      const { data, error } = await supabase.functions.invoke('submit-match', {
+        body: {
+          isLive,
+          lobbyPin,
+          matchType: isLive ? lobbyState.match_type : matchType,
+          scoreA,
+          scoreB,
+          playerAId: user.id,
+          partnerId: isLive ? lobbyState.team_a_player2_id : partner?.id,
+          opp1Id: isLive ? lobbyState.team_b_player1_id : opponent1?.id,
+          opp2Id: isLive ? lobbyState.team_b_player2_id : opponent2?.id,
+        },
+      });
 
-    if (!countError && userMatchCount !== null) {
-      if (userMatchCount < 10) {
-        K_FACTOR = 0.2; 
-      } else if (userMatchCount >= 40) {
-        K_FACTOR = 0.05; 
-      }
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+
+      alert(`${t('alerts.successNewRating')} ${data.newRating}`);
+      window.location.href = "/dashboard";
+      
+    } catch (err) {
+      alert("Error submitting match: " + err.message);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    let pA = profile.rating, pB = profile.rating, o1 = 3.5, o2 = 3.5;
-
-    if (isLive) {
-      if (lobbyState.match_type === '2v2' && lobbyPlayers[lobbyState.team_a_player2_id]) pB = lobbyPlayers[lobbyState.team_a_player2_id].rating;
-      if (lobbyPlayers[lobbyState.team_b_player1_id]) o1 = lobbyPlayers[lobbyState.team_b_player1_id].rating;
-      if (lobbyPlayers[lobbyState.team_b_player2_id]) o2 = lobbyPlayers[lobbyState.team_b_player2_id].rating;
-    } else {
-      if (matchType === '2v2' && partner) pB = partner.rating;
-      if (opponent1) o1 = opponent1.rating;
-      if (matchType === '2v2' && opponent2) o2 = opponent2.rating;
-    }
-
-    const teamARating = (matchType === '2v2' || (isLive && lobbyState.match_type === '2v2')) ? (pA + pB) / 2 : pA;
-    const teamBRating = (matchType === '2v2' || (isLive && lobbyState.match_type === '2v2')) ? (o1 + o2) / 2 : o1;
-    
-    // =====================================================================
-    // HYBRID DUPR ALGORITHM: Weighting Win/Loss (70%) & Point Spread (30%)
-    // =====================================================================
-    const expectedPerformance = 1 / (1 + Math.pow(10, (teamBRating - teamARating) / 1.0));
-    
-    const totalPoints = scoreA + scoreB;
-    const actualPointsPct = scoreA / totalPoints;
-    const isWinner = scoreA > scoreB;
-    const matchResult = isWinner ? 1 : 0;
-
-    // Blend the raw Win/Loss result with the Points Differential
-    const actualPerformance = (matchResult * 0.7) + (actualPointsPct * 0.3);
-    
-    const ratingChange = K_FACTOR * (actualPerformance - expectedPerformance);
-    const newRating = (profile.rating + ratingChange).toFixed(3);
-
-    await supabase.from('matches').insert([{ 
-      match_type: isLive ? lobbyState.match_type : matchType,
-      player_a_id: user.id, 
-      team_a_player2_id: isLive ? lobbyState.team_a_player2_id : (partner ? partner.id : null),
-      team_b_player1_id: isLive ? lobbyState.team_b_player1_id : (opponent1 ? opponent1.id : null),
-      team_b_player2_id: isLive ? lobbyState.team_b_player2_id : (opponent2 ? opponent2.id : null),
-      player_a_score: scoreA, 
-      player_b_score: scoreB,
-      rating_change: ratingChange 
-    }]);
-
-    await supabase.from('profiles').update({ rating: Number(newRating) }).eq('id', user.id);
-    if (isLive) await supabase.from('match_lobbies').update({ status: 'completed' }).eq('pin', lobbyPin);
-    
-    alert(`${t('alerts.successNewRating')} ${newRating}`);
-    window.location.href = "/dashboard";
   };
 
   return (
-    <main 
-      className="min-h-screen px-4 py-6 md:p-8 w-full pb-24 overflow-y-auto overflow-x-hidden touch-pan-y text-center bg-[#050507]" 
-      style={{ WebkitOverflowScrolling: 'touch' }}
-    >
+    <main className="min-h-dvh px-4 pb-24 pt-20 md:pt-8 md:p-8 w-full text-center bg-[#050507]">
       <div className="w-full max-w-lg mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
         
-        <div className="flex glass-card rounded-2xl p-1.5 mb-6 relative z-20 shadow-xl border border-white/5 bg-black/40">
+        <div className="flex glass-card rounded-xl p-1 mb-6 relative z-20 shadow-xl border border-white/5 bg-black/40 h-12">
           {['manual', 'host', 'join'].map((tab) => (
             <button
               key={tab}
               onClick={() => setViewMode(tab)}
-              className={`relative flex-1 py-3 rounded-xl font-bold text-sm outline-none transition-colors duration-300 ${
+              className={`relative flex-1 rounded-lg font-bold text-sm outline-none transition-colors duration-300 ${
                 viewMode === tab ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
               {viewMode === tab && (
                 <motion.div
                   layoutId="viewModeIndicator"
-                  className="absolute inset-0 bg-white/10 rounded-xl shadow-md border border-white/10"
+                  className="absolute inset-0 bg-white/10 rounded-lg shadow-md border border-white/10"
                   transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                 />
               )}
@@ -416,16 +403,16 @@ export default function Home() {
                 animate="animate"
                 exit="exit"
                 transition={pageTransition}
-                className="space-y-6"
+                className="space-y-4"
               >
                 
-                <div className="flex glass-card rounded-xl p-1 mb-2 border border-white/5 bg-black/40">
+                <div className="flex glass-card rounded-xl p-1 border border-white/5 bg-black/40 h-10 w-48 mx-auto">
                   {['1v1', '2v2'].map((type) => (
                     <button
                       key={type}
                       type="button"
                       onClick={() => handleMatchTypeToggle(type)}
-                      className={`relative flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-bold text-sm outline-none transition-colors duration-300 ${
+                      className={`relative flex-1 flex items-center justify-center gap-1.5 rounded-lg font-bold text-xs outline-none transition-colors duration-300 ${
                         matchType === type ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
                       }`}
                     >
@@ -436,19 +423,19 @@ export default function Home() {
                           transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                         />
                       )}
-                      <span className="relative z-10 flex items-center gap-2">
-                        {type === '1v1' ? <User size={16}/> : <Users size={16}/>} {type}
+                      <span className="relative z-10 flex items-center gap-1.5">
+                        {type === '1v1' ? <User size={14}/> : <Users size={14}/>} {type}
                       </span>
                     </button>
                   ))}
                 </div>
 
-                <div className="glass-panel p-5 sm:p-6 rounded-4xl relative overflow-hidden shadow-2xl border border-white/5 bg-linear-to-br from-white/3 to-transparent">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-[100px] -mr-20 -mt-20 pointer-events-none"></div>
+                <div className="glass-panel p-5 rounded-3xl relative overflow-hidden shadow-2xl border border-white/5 bg-linear-to-br from-white/3 to-transparent">
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/10 rounded-full blur-[80px] -mr-10 -mt-10 pointer-events-none"></div>
                   <div className="relative z-10">
-                    <h3 className="font-black text-orange-500 uppercase tracking-widest mb-4 text-xs text-left">{t('logMatch.yourTeam')}</h3>
-                    <div className="flex justify-between items-center bg-black/40 p-4 rounded-2xl border border-white/5 shadow-inner">
-                      <div className="flex flex-col gap-3 w-full overflow-hidden pr-4">
+                    <h3 className="font-black text-orange-500 uppercase tracking-widest mb-3 text-[10px] text-left">{t('logMatch.yourTeam')}</h3>
+                    <div className="flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5 shadow-inner">
+                      <div className="flex flex-col gap-2.5 w-full overflow-hidden pr-4">
                         <PlayerRowDisplay player="YOU" label={t('logMatch.player1')} color="orange" currentUser={user} t={t} />
                         {matchType === '2v2' && (
                           <PlayerRowDisplay player={partner} label={t('logMatch.partner')} color="orange" currentUser={user} t={t} />
@@ -462,12 +449,12 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="glass-panel p-5 sm:p-6 rounded-4xl relative overflow-hidden shadow-2xl border border-white/5 bg-linear-to-br from-white/3 to-transparent">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[100px] -mr-20 -mt-20 pointer-events-none"></div>
+                <div className="glass-panel p-5 rounded-3xl relative overflow-hidden shadow-2xl border border-white/5 bg-linear-to-br from-white/3 to-transparent">
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/10 rounded-full blur-[80px] -mr-10 -mt-10 pointer-events-none"></div>
                   <div className="relative z-10">
-                    <h3 className="font-black text-blue-400 uppercase tracking-widest mb-4 text-xs text-left">{t('logMatch.opponents')}</h3>
-                    <div className="flex justify-between items-center bg-black/40 p-4 rounded-2xl border border-white/5 shadow-inner">
-                      <div className="flex flex-col gap-3 w-full overflow-hidden pr-4">
+                    <h3 className="font-black text-blue-400 uppercase tracking-widest mb-3 text-[10px] text-left">{t('logMatch.opponents')}</h3>
+                    <div className="flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5 shadow-inner">
+                      <div className="flex flex-col gap-2.5 w-full overflow-hidden pr-4">
                         <PlayerRowDisplay player={opponent1} label={t('logMatch.opponent1')} color="blue" currentUser={user} t={t} />
                         {matchType === '2v2' && (
                           <PlayerRowDisplay player={opponent2} label={t('logMatch.opponent2')} color="blue" currentUser={user} t={t} />
@@ -482,8 +469,8 @@ export default function Home() {
                   </div>
                 </div>
 
-                <button onClick={(e) => submitMatch(e, false)} className="w-full bg-orange-600 text-white font-black py-5 rounded-3xl text-lg hover:bg-orange-500 active:scale-95 transition-all shadow-[0_15px_40px_rgba(234,88,12,0.3)] flex items-center justify-center gap-2">
-                  <Trophy size={20} /> {t('logMatch.submit')}
+                <button onClick={requireAuth((e) => submitMatch(e, false))} disabled={isSubmitting} className="w-full h-12 bg-orange-600 text-white font-bold rounded-xl text-base hover:bg-orange-500 active:scale-95 transition-all shadow-[0_8px_20px_rgba(234,88,12,0.25)] disabled:opacity-50 flex items-center justify-center gap-2 mt-2">
+                  {isSubmitting ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : <><Trophy size={18} /> {t('logMatch.submit')}</>}
                 </button>
               </motion.div>
             )}
@@ -498,30 +485,30 @@ export default function Home() {
                 transition={pageTransition}
               >
                 {!lobbyPin ? (
-                  <div className="glass-panel p-6 sm:p-8 rounded-[2.5rem] border border-white/5 bg-linear-to-br from-white/3 to-transparent">
-                    <div className="text-center py-6">
-                      <div className="w-20 h-20 glass-card rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-white/10">
-                        <Users className="w-10 h-10 text-white" />
+                  <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/5 bg-linear-to-br from-white/3 to-transparent">
+                    <div className="text-center py-4">
+                      <div className="w-16 h-16 glass-card rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner border border-white/10">
+                        <Users className="w-8 h-8 text-white" />
                       </div>
-                      <h2 className="text-2xl font-black text-white mb-2">{t('logMatch.startLive')}</h2>
-                      <p className="text-zinc-400 text-sm mb-8">
+                      <h2 className="text-xl font-black text-white mb-2">{t('logMatch.startLive')}</h2>
+                      <p className="text-zinc-400 text-xs mb-8">
                         {t('logMatch.hostDesc')}
                       </p>
                       
-                      <div className="flex glass-card rounded-xl p-1 mb-8 max-w-xs mx-auto border border-white/5 bg-black/40">
+                      <div className="flex glass-card rounded-lg p-1 mb-8 max-w-50 mx-auto border border-white/5 bg-black/40 h-10">
                         {['1v1', '2v2'].map((type) => (
                           <button
                             key={type}
                             type="button"
                             onClick={() => handleMatchTypeToggle(type)}
-                            className={`relative flex-1 py-3 rounded-lg font-bold text-sm outline-none transition-colors duration-300 ${
+                            className={`relative flex-1 rounded-md font-bold text-xs outline-none transition-colors duration-300 ${
                               matchType === type ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
                             }`}
                           >
                             {matchType === type && (
                               <motion.div
                                 layoutId="hostMatchIndicator"
-                                className="absolute inset-0 bg-white/10 rounded-lg shadow-md border border-white/10"
+                                className="absolute inset-0 bg-white/10 rounded-md shadow-md border border-white/10"
                                 transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                               />
                             )}
@@ -530,26 +517,26 @@ export default function Home() {
                         ))}
                       </div>
                       
-                      <button onClick={hostLobby} className="w-full bg-orange-600 text-white font-black py-5 rounded-3xl text-lg hover:bg-orange-500 active:scale-95 transition-all shadow-[0_15px_40px_rgba(234,88,12,0.3)]">
+                      <button onClick={requireAuth(hostLobby)} className="w-full h-12 bg-orange-600 text-white font-bold rounded-xl text-base hover:bg-orange-500 active:scale-95 transition-all shadow-[0_8px_20px_rgba(234,88,12,0.25)]">
                         {t('logMatch.generatePin')}
                       </button>
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <div className="text-center mb-8">
-                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">{t('logMatch.matchPin')}</p>
-                      <div className="inline-block bg-white/5 border border-white/10 px-10 py-4 rounded-4xl shadow-inner">
-                        <p className="text-6xl sm:text-7xl font-black text-white tracking-[0.2em] drop-shadow-md">{lobbyPin}</p>
+                    <div className="text-center mb-6">
+                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">{t('logMatch.matchPin')}</p>
+                      <div className="inline-block bg-white/5 border border-white/10 px-8 py-3 rounded-2xl shadow-inner">
+                        <p className="text-5xl font-black text-white tracking-[0.2em] drop-shadow-md">{lobbyPin}</p>
                       </div>
                     </div>
                     
-                    <div className="glass-panel p-5 sm:p-6 rounded-4xl relative overflow-hidden mb-6 shadow-2xl border border-white/5 bg-linear-to-br from-white/3 to-transparent">
-                      <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-[100px] -mr-20 -mt-20 pointer-events-none"></div>
+                    <div className="glass-panel p-5 rounded-3xl relative overflow-hidden mb-4 shadow-2xl border border-white/5 bg-linear-to-br from-white/3 to-transparent">
+                      <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/10 rounded-full blur-[80px] -mr-10 -mt-10 pointer-events-none"></div>
                       <div className="relative z-10">
-                        <h3 className="font-black text-orange-500 uppercase tracking-widest mb-4 text-xs text-left">{t('logMatch.teamA')}</h3>
-                        <div className="flex justify-between items-center bg-black/40 p-4 rounded-2xl border border-white/5 shadow-inner">
-                          <div className="flex flex-col gap-3 w-full overflow-hidden pr-4">
+                        <h3 className="font-black text-orange-500 uppercase tracking-widest mb-3 text-[10px] text-left">{t('logMatch.teamA')}</h3>
+                        <div className="flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5 shadow-inner">
+                          <div className="flex flex-col gap-2.5 w-full overflow-hidden pr-4">
                             <LivePlayerRow title={t('logMatch.hostRole')} playerId={lobbyState?.host_id} color="orange" lobbyPlayers={lobbyPlayers} t={t} />
                             {lobbyState?.match_type === '2v2' && (
                               <LivePlayerRow title={t('logMatch.partner')} playerId={lobbyState?.team_a_player2_id} color="orange" lobbyPlayers={lobbyPlayers} t={t} />
@@ -560,12 +547,12 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <div className="glass-panel p-5 sm:p-6 rounded-4xl relative overflow-hidden mb-8 shadow-2xl border border-white/5 bg-linear-to-br from-white/3 to-transparent">
-                      <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[100px] -mr-20 -mt-20 pointer-events-none"></div>
+                    <div className="glass-panel p-5 rounded-3xl relative overflow-hidden mb-6 shadow-2xl border border-white/5 bg-linear-to-br from-white/3 to-transparent">
+                      <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/10 rounded-full blur-[80px] -mr-10 -mt-10 pointer-events-none"></div>
                       <div className="relative z-10">
-                        <h3 className="font-black text-blue-400 uppercase tracking-widest mb-4 text-xs text-left">{t('logMatch.teamB')}</h3>
-                        <div className="flex justify-between items-center bg-black/40 p-4 rounded-2xl border border-white/5 shadow-inner">
-                          <div className="flex flex-col gap-3 w-full overflow-hidden pr-4">
+                        <h3 className="font-black text-blue-400 uppercase tracking-widest mb-3 text-[10px] text-left">{t('logMatch.teamB')}</h3>
+                        <div className="flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5 shadow-inner">
+                          <div className="flex flex-col gap-2.5 w-full overflow-hidden pr-4">
                             <LivePlayerRow title={t('logMatch.p1Role')} playerId={lobbyState?.team_b_player1_id} color="blue" lobbyPlayers={lobbyPlayers} t={t} />
                             {lobbyState?.match_type === '2v2' && (
                               <LivePlayerRow title={t('logMatch.p2Role')} playerId={lobbyState?.team_b_player2_id} color="blue" lobbyPlayers={lobbyPlayers} t={t} />
@@ -576,11 +563,11 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <button onClick={(e) => submitMatch(e, true)} className="w-full bg-orange-600 text-white font-black py-5 rounded-3xl text-lg hover:bg-orange-500 active:scale-95 transition-all shadow-[0_15px_40px_rgba(234,88,12,0.3)] flex items-center justify-center gap-2">
-                      <Trophy size={20} /> {t('logMatch.submit')}
+                    <button onClick={requireAuth((e) => submitMatch(e, true))} disabled={isSubmitting} className="w-full h-12 bg-orange-600 text-white font-bold rounded-xl text-base hover:bg-orange-500 active:scale-95 transition-all shadow-[0_8px_20px_rgba(234,88,12,0.25)] disabled:opacity-50 flex items-center justify-center gap-2">
+                      {isSubmitting ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : <><Trophy size={18} /> {t('logMatch.submit')}</>}
                     </button>
 
-                    <button onClick={cancelLobby} className="w-full mt-6 py-4 text-sm font-bold text-zinc-500 hover:text-white transition-colors">
+                    <button onClick={cancelLobby} className="w-full mt-4 py-3 text-sm font-bold text-zinc-500 hover:text-white transition-colors">
                       {t('logMatch.cancel')}
                     </button>
                   </div>
@@ -598,10 +585,10 @@ export default function Home() {
                 transition={pageTransition}
               >
                 {!isJoined && !pendingJoinLobby && (
-                  <div className="glass-panel p-6 sm:p-8 rounded-[2.5rem] text-center border border-white/5 bg-linear-to-br from-white/3 to-transparent">
-                    <form onSubmit={joinLobby} className="py-6">
-                      <h2 className="text-2xl font-black text-white mb-2">{t('logMatch.joinLive')}</h2>
-                      <p className="text-zinc-400 text-sm mb-8">
+                  <div className="glass-panel p-6 sm:p-8 rounded-3xl text-center border border-white/5 bg-linear-to-br from-white/3 to-transparent">
+                    <form onSubmit={joinLobby} className="py-4">
+                      <h2 className="text-xl font-black text-white mb-2">{t('logMatch.joinLive')}</h2>
+                      <p className="text-zinc-400 text-xs mb-8">
                         {t('logMatch.joinDesc')}
                       </p>
                       
@@ -613,10 +600,10 @@ export default function Home() {
                         value={joinPinInput} 
                         onChange={(e) => setJoinPinInput(e.target.value.replace(/\D/g, ''))} 
                         placeholder="0000" 
-                        className="block w-full h-32 rounded-4xl bg-black/40 border border-white/10 text-center text-7xl font-black text-white focus:border-orange-500 outline-none transition-all mb-8 tracking-[0.2em] shadow-inner placeholder-zinc-800" 
+                        className="block w-full h-24 rounded-2xl bg-black/40 border border-white/10 text-center text-5xl font-black text-white focus:border-orange-500 outline-none transition-all mb-8 tracking-[0.2em] shadow-inner placeholder-zinc-800" 
                       />
                       
-                      <button type="submit" className="w-full bg-orange-600 text-white font-black py-5 rounded-3xl text-lg hover:bg-orange-500 active:scale-95 transition-all shadow-[0_15px_40px_rgba(234,88,12,0.3)]">
+                      <button type="submit" className="w-full h-12 bg-orange-600 text-white font-bold rounded-xl text-base hover:bg-orange-500 active:scale-95 transition-all shadow-[0_8px_20px_rgba(234,88,12,0.25)]">
                         {t('logMatch.joinBtn')}
                       </button>
                     </form>
@@ -624,50 +611,76 @@ export default function Home() {
                 )}
 
                 {pendingJoinLobby && !isJoined && (
-                  <div className="glass-panel p-6 sm:p-8 rounded-[2.5rem] text-left border border-white/5 bg-linear-to-br from-white/3 to-transparent">
-                    <h2 className="text-2xl font-black text-white mb-2 text-center">{t('logMatch.chooseTeam')}</h2>
-                    <p className="text-zinc-400 text-sm mb-8 text-center">{t('logMatch.selectPosition')}</p>
+                  <div className="glass-panel p-6 sm:p-8 rounded-3xl text-left border border-white/5 bg-linear-to-br from-white/3 to-transparent">
+                    <h2 className="text-xl font-black text-white mb-2 text-center">{t('logMatch.chooseTeam')}</h2>
+                    <p className="text-zinc-400 text-xs mb-6 text-center">{t('logMatch.selectPosition')}</p>
                     
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <JoinSlotButton 
                         title={`${t('logMatch.teamA')} - ${t('logMatch.partner')}`} 
                         playerId={pendingJoinLobby.team_a_player2_id} 
                         color="orange" 
-                        onClick={() => completeJoin(pendingJoinLobby.pin, 'team_a_player2_id')} 
+                        onClick={() => completeJoin(pendingJoinLobby.pin, 'team_a_player2_id', pendingJoinLobby)} 
                         t={t} 
                       />
                       <JoinSlotButton 
                         title={`${t('logMatch.teamB')} - ${t('logMatch.p1Role')}`} 
                         playerId={pendingJoinLobby.team_b_player1_id} 
                         color="blue" 
-                        onClick={() => completeJoin(pendingJoinLobby.pin, 'team_b_player1_id')} 
+                        onClick={() => completeJoin(pendingJoinLobby.pin, 'team_b_player1_id', pendingJoinLobby)} 
                         t={t} 
                       />
                       <JoinSlotButton 
                         title={`${t('logMatch.teamB')} - ${t('logMatch.p2Role')}`} 
                         playerId={pendingJoinLobby.team_b_player2_id} 
                         color="blue" 
-                        onClick={() => completeJoin(pendingJoinLobby.pin, 'team_b_player2_id')} 
+                        onClick={() => completeJoin(pendingJoinLobby.pin, 'team_b_player2_id', pendingJoinLobby)} 
                         t={t} 
                       />
                     </div>
                     
-                    <button onClick={() => setPendingJoinLobby(null)} className="w-full mt-6 py-4 text-sm font-bold text-zinc-500 hover:text-white transition-colors text-center">
+                    <button onClick={() => setPendingJoinLobby(null)} className="w-full mt-4 py-3 text-sm font-bold text-zinc-500 hover:text-white transition-colors text-center">
                       {t('logMatch.cancel')}
                     </button>
                   </div>
                 )}
 
-                {isJoined && (
-                  <div className="glass-panel p-6 sm:p-12 rounded-[2.5rem] flex flex-col items-center border border-white/5 bg-linear-to-br from-white/3 to-transparent">
-                    <div className="relative mb-8 mt-4">
-                      <div className="w-24 h-24 border-4 border-white/10 border-t-orange-500 rounded-full animate-spin"></div>
-                      <Users className="w-8 h-8 text-orange-500 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+                {isJoined && lobbyState && (
+                  <div className="glass-panel p-6 sm:p-8 rounded-3xl flex flex-col border border-white/5 bg-linear-to-br from-white/3 to-transparent">
+                    <h2 className="text-xl font-black text-white mb-6 text-center">
+                       {lobbyState.status === 'completed' ? 'Final Score' : 'Live Match'}
+                    </h2>
+                    
+                    <div className="space-y-4 mb-8">
+                      <div className="flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5 shadow-inner">
+                         <div className="flex flex-col gap-2 w-full overflow-hidden pr-4">
+                            <LivePlayerRow title={t('logMatch.teamA')} playerId={lobbyState.host_id} color="orange" lobbyPlayers={lobbyPlayers} t={t} />
+                         </div>
+                         <div className={`w-16 h-16 flex items-center justify-center text-3xl font-black bg-black border rounded-xl shadow-inner ${lobbyState.status === 'completed' ? 'text-orange-400 border-orange-500/50' : 'text-zinc-500 border-white/10'}`}>
+                            {lobbyState.status === 'completed' ? lobbyState.player_a_score : '-'}
+                         </div>
+                      </div>
+                      
+                      <div className="flex justify-between items-center bg-black/40 p-3 rounded-xl border border-white/5 shadow-inner">
+                         <div className="flex flex-col gap-2 w-full overflow-hidden pr-4">
+                            <LivePlayerRow title={t('logMatch.teamB')} playerId={lobbyState.team_b_player1_id} color="blue" lobbyPlayers={lobbyPlayers} t={t} />
+                         </div>
+                         <div className={`w-16 h-16 flex items-center justify-center text-3xl font-black bg-black border rounded-xl shadow-inner ${lobbyState.status === 'completed' ? 'text-blue-400 border-blue-500/50' : 'text-zinc-500 border-white/10'}`}>
+                            {lobbyState.status === 'completed' ? lobbyState.player_b_score : '-'}
+                         </div>
+                      </div>
                     </div>
-                    <h2 className="text-2xl font-black text-white mb-2">{t('logMatch.youAreIn')}</h2>
-                    <p className="text-zinc-400 text-sm mb-4">
-                      {t('logMatch.waitingForHost')}
-                    </p>
+
+                    {lobbyState.status === 'completed' ? (
+                       <button onClick={handleGuestApprove} className="w-full h-12 bg-green-600 text-white font-bold rounded-xl text-base hover:bg-green-500 active:scale-95 transition-all shadow-[0_8px_20px_rgba(22,163,74,0.25)] flex items-center justify-center gap-2">
+                         <Check className="w-5 h-5" /> Approve & Save Match
+                       </button>
+                    ) : (
+                       <div className="text-center pb-2">
+                         <div className="w-8 h-8 border-4 border-white/10 border-t-orange-500 rounded-full animate-spin mx-auto mb-3"></div>
+                         <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">{t('logMatch.waitingForHost')}</p>
+                       </div>
+                    )}
                   </div>
                 )}
               </motion.div>
@@ -675,8 +688,42 @@ export default function Home() {
 
           </AnimatePresence>
         </div>
-
       </div>
+
+      {/* Guest Prompt Modal */}
+      <AnimatePresence>
+        {showGuestPrompt && (
+          <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm touch-none" 
+              onClick={() => setShowGuestPrompt(false)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm glass-panel p-6 rounded-4xl border border-white/10 bg-[#0a0a0c]/95 text-center shadow-2xl"
+            >
+              <div className="w-16 h-16 rounded-full bg-orange-500/10 flex items-center justify-center mx-auto mb-4 border border-orange-500/20">
+                <Trophy className="w-8 h-8 text-orange-500" />
+              </div>
+              <h3 className="text-xl font-black text-white mb-2">Save Your Stats!</h3>
+              <p className="text-sm text-zinc-400 mb-6 leading-relaxed px-2">
+                Create a free account to log your matches, track your official rating, and play live with friends.
+              </p>
+              <div className="space-y-3">
+                <button onClick={() => router.push('/login')} className="w-full h-12 bg-orange-600 text-white font-bold rounded-xl text-base hover:bg-orange-500 active:scale-95 transition-all shadow-[0_8px_20px_rgba(234,88,12,0.25)]">
+                  Sign In / Create Account
+                </button>
+                <button onClick={() => setShowGuestPrompt(false)} className="w-full h-12 bg-white/5 text-zinc-300 font-bold rounded-xl text-sm hover:bg-white/10 active:scale-95 transition-all">
+                  Not Now
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

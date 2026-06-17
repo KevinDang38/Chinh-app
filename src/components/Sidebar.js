@@ -37,11 +37,9 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
   useEffect(() => setMobileOpen(false), [pathname, setMobileOpen]);
 
-  // PREVENT BACKGROUND SCROLLING & FIX SAFARI BOUNCE
   useEffect(() => {
     if (isMobileOpen) {
       document.body.style.overflow = 'hidden';
-      // touch-none acts as a secondary failsafe for iOS background dragging
       document.body.style.touchAction = 'none'; 
     } else {
       document.body.style.overflow = '';
@@ -59,19 +57,22 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setMobileOpen(false);
-    router.push("/login");
+    router.push("/");
   };
 
+  // BASE MENU: Visible to everyone, including guests exploring the app
   const navItems = [
-    { name: t('sidebar.dashboard'), path: '/dashboard' },
     { name: t('sidebar.logMatch'), path: '/' },
     { name: t('sidebar.events'), path: '/events' },
   ];
 
+  // LOGGED IN MENU: Dynamic insertion of restricted pages
   if (user) {
+    navItems.unshift({ name: t('sidebar.dashboard'), path: '/dashboard' });
     navItems.splice(2, 0, { name: t('sidebar.friends'), path: '/friends' });
   }
 
+  // ADMIN MENU: Host privileges
   if (userProfile.role === "admin") {
     navItems.push({ name: t('sidebar.hostEvent'), path: '/events/create' });
   }
@@ -80,7 +81,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     <>
       {/* 📱 MOBILE: Top Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#050507]/90 backdrop-blur-xl border-b border-white/5 z-40 flex items-center justify-between px-5">
-        <Link href="/dashboard" className="text-xl font-black text-white tracking-tighter">
+        <Link href={user ? "/dashboard" : "/"} className="text-xl font-black text-white tracking-tighter">
           Chình
         </Link>
 
@@ -97,16 +98,13 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       {/* 📱 MOBILE: Sleek Slide-In Drawer */}
       {isMobileOpen && (
         <div className="md:hidden">
-          {/* Overlay using 100dvh to fix Safari gap */}
           <div 
             className="fixed top-0 left-0 w-full h-dvh z-100 bg-black/60 backdrop-blur-md animate-in fade-in duration-300 touch-none"
             onClick={() => setMobileOpen(false)}
           ></div>
           
-          {/* Drawer using 100dvh to stretch perfectly to the true bottom */}
           <div className="fixed top-0 right-0 w-70 h-dvh bg-[#0a0a0c] z-101 flex flex-col shadow-2xl border-l border-white/5 animate-in slide-in-from-right duration-300">
             
-            {/* Scrollable upper section (prevents squishing on small phones) */}
             <div className="flex-1 overflow-y-auto pb-4">
               <div className="p-6 border-b border-white/5 mb-2 bg-white/2">
                 {user ? (
@@ -120,11 +118,17 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     </div>
                   </div>
                 ) : (
-                  <h2 className="text-2xl font-black text-white tracking-tighter">Chình</h2>
+                  <div className="flex flex-col gap-2">
+                    <h2 className="text-2xl font-black text-white tracking-tighter">Chình</h2>
+                    <p className="text-xs text-zinc-500 font-medium leading-tight">Explore the app, or sign in to track your rating.</p>
+                    <Link href="/login" onClick={() => setMobileOpen(false)} className="mt-2 w-full py-2.5 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-lg text-center border border-white/5 transition-colors">
+                      Sign In / Sign Up
+                    </Link>
+                  </div>
                 )}
               </div>
 
-              <nav className="px-3 space-y-1">
+              <nav className="px-3 space-y-1 mt-2">
                 {navItems.map((item) => {
                   const isActive = pathname === item.path;
                   return (
@@ -144,7 +148,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               </nav>
             </div>
 
-            {/* Fixed Bottom Footer (Language & Sign Out) with safe-area padding */}
             <div className="p-3 border-t border-white/5 space-y-1 bg-[#0a0a0c] shrink-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <button 
                 onClick={toggleLanguage}
@@ -171,14 +174,14 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       <aside className="hidden md:flex flex-col justify-between w-64 h-screen sticky top-0 bg-[#0a0a0c]/80 backdrop-blur-3xl border-r border-white/5 shrink-0 overflow-hidden z-50">
         <div className="absolute top-0 left-0 w-full h-32 bg-linear-to-b from-white/2 to-transparent pointer-events-none"></div>
 
-        <div className="pt-10 relative z-10">
+        <div className="pt-10 relative z-10 flex-1 flex flex-col">
           <div className="px-8 mb-10">
-            <Link href="/dashboard" className="text-3xl font-black text-white tracking-tighter hover:text-zinc-300 transition-colors drop-shadow-md">
+            <Link href={user ? "/dashboard" : "/"} className="text-3xl font-black text-white tracking-tighter hover:text-zinc-300 transition-colors drop-shadow-md">
               Chình
             </Link>
           </div>
 
-          <nav className="space-y-1.5 px-3">
+          <nav className="space-y-1.5 px-3 flex-1">
             {navItems.map((item) => {
               const isActive = pathname === item.path;
               return (
@@ -198,7 +201,14 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           </nav>
         </div>
 
-        <div className="p-3 space-y-1 relative z-10 mb-4">
+        <div className="p-3 space-y-1 relative z-10 mb-4 bg-[#0a0a0c]">
+          {!user && (
+            <div className="px-3 pb-3 mb-2 border-b border-white/5">
+              <Link href="/login" className="flex items-center justify-center w-full py-3 bg-white/5 hover:bg-white/10 text-white text-sm font-bold rounded-xl border border-white/5 transition-colors">
+                Sign In / Sign Up
+              </Link>
+            </div>
+          )}
           <button 
             onClick={toggleLanguage}
             className="w-full flex justify-between items-center px-5 py-3 text-sm font-bold text-zinc-500 hover:text-white transition-colors rounded-2xl hover:bg-white/5"
