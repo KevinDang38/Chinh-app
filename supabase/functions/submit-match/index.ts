@@ -12,10 +12,16 @@ serve(async (req: Request) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Unauthorized: Missing Authorization header');
+    }
+    const token = authHeader.replace('Bearer ', '');
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      { global: { headers: { Authorization: authHeader } } }
     );
 
     const supabaseAdmin = createClient(
@@ -23,8 +29,9 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) throw new Error('Unauthorized');
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    if (authError) throw new Error(`Auth Error: ${authError.message}`);
+    if (!user) throw new Error('Unauthorized: No user found');
 
     const { 
       isLive, lobbyPin, matchType, scoreA, scoreB, 
@@ -83,13 +90,7 @@ serve(async (req: Request) => {
     const kA = await getKFactor(playerAId);
     const ratingChangeA = kA * (actualPerformanceA - expectedPerformanceA);
 
-    // FIX: Removed the invalid schema update here!
-    if (isLive && lobbyPin) {
-      await supabaseAdmin.from('match_lobbies').update({ 
-        status: 'completed' 
-      }).eq('pin', lobbyPin);
-    }
-
+    // Write match data first to eliminate frontend lookup latency
     await supabaseAdmin.from('matches').insert([{ 
       match_type: matchType,
       player_a_id: playerAId, 
@@ -100,6 +101,12 @@ serve(async (req: Request) => {
       player_b_score: scoreB,
       rating_change: ratingChangeA 
     }]);
+
+    if (isLive && lobbyPin) {
+      await supabaseAdmin.from('match_lobbies').update({ 
+        status: 'completed' 
+      }).eq('pin', lobbyPin);
+    }
 
     const updateRating = async (id: string | null, currentRating: number, actualPerf: number, expectedPerf: number) => {
         if(!id) return null;
