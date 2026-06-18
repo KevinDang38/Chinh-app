@@ -28,7 +28,11 @@
     "officialRating": "Hệ số DUPR Chính Thức",
     "recentForm": "Trận Gần Đây",
     "noSingles": "Chưa có lịch sử Đánh Đơn.",
-    "noDoubles": "Chưa có lịch sử Đánh Đôi."
+    "noDoubles": "Chưa có lịch sử Đánh Đôi.",
+    "performanceHistory": "Lịch Sử DUPR",
+    "performanceHistorySub": "Quỹ đạo điểm xếp hạng của bạn qua các trận đấu.",
+    "score": "Tỷ số",
+    "start": "Bắt đầu"
   },
   "friends": {
     "title": "Bạn Bè",

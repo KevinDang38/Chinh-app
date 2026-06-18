@@ -28,7 +28,11 @@
     "officialRating": "Your Official DUPR Rating",
     "recentForm": "Recent Form",
     "noSingles": "No Singles matches found.",
-    "noDoubles": "No Doubles matches found."
+    "noDoubles": "No Doubles matches found.",
+    "performanceHistory": "DUPR History",
+    "performanceHistorySub": "Your rating trajectory over recorded matches.",
+    "score": "Score",
+    "start": "Start"
   },
   "friends": {
     "title": "Friends",
