@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useLanguage } from "../../../context/LanguageContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, MapPin, Users, Activity, Check, X, Trophy, DollarSign, UserCheck, ChevronDown, LogOut, Clock, Crown, ShieldAlert, RotateCcw, AlertTriangle } from "lucide-react";
+import useSWR from "swr";
 
 const getInitials = (email) => email ? email.substring(0, 2).toUpperCase() : '?';
 
@@ -13,65 +14,74 @@ export default function EventDetails() {
   const router = useRouter();
   const { t } = useLanguage();
   
-  const [currentUser, setCurrentUser] = useState(null);
-  const [userProfile, setUserProfile] = useState(null);
-  const [event, setEvent] = useState(null);
-  const [participants, setParticipants] = useState([]);
-  
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
-  
-  const [adminView, setAdminView] = useState('pending'); 
-  const [isEditingCapacity, setIsEditingCapacity] = useState(false);
-  const [newCapacity, setNewCapacity] = useState("16");
-  const [isEditingFee, setIsEditingFee] = useState(false);
-  const [newFee, setNewFee] = useState("");
-
-  const [matchScores, setMatchScores] = useState({});
-  const [viewRound, setViewRound] = useState(1);
-  const [showGuestPrompt, setShowGuestPrompt] = useState(false);
-
-  useEffect(() => {
-    fetchEventAndUser();
-  }, [id]);
-
-  const fetchEventAndUser = async () => {
+  // 1. The High-Performance SWR Fetcher
+  const fetcher = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    let userId = null;
-    if (session) {
-      userId = session.user.id;
-      setCurrentUser(session.user);
+    let userId = session?.user?.id || null;
+    let currentUser = session?.user || null;
+    let userProfile = null;
+
+    if (userId) {
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', userId).single();
-      setUserProfile(prof);
+      userProfile = prof;
     }
 
     const { data: eventData, error: eventErr } = await supabase.from('events').select('*').eq('id', id).single();
-    if (eventErr || !eventData) return router.push("/events");
-    
+    if (eventErr || !eventData) throw new Error("Event not found");
+
     if (eventData.host_id) {
        const { data: hostData } = await supabase.from('profiles').select('email').eq('id', eventData.host_id).maybeSingle();
        eventData.host_email = hostData?.email || 'Admin';
     }
 
-    setEvent(eventData);
-    setNewCapacity(eventData.max_players ? eventData.max_players.toString() : "Open");
-    setNewFee(eventData.entry_fee || "");
-    
-    if (eventData.bracket_data?.current_round) {
-      setViewRound(eventData.bracket_data.current_round);
-    }
-
-    const { data: partData, error: partErr } = await supabase
+    const { data: partData } = await supabase
       .from('event_participants')
       .select('*, profiles!inner(email, rating, profile_hash)')
       .eq('event_id', id);
-    
-    if (partErr) console.error("Fetch Participants Error:", partErr);
-    else setParticipants(partData || []);
-    
-    setLoading(false);
+
+    return { currentUser, userProfile, event: eventData, participants: partData || [] };
   };
+
+  // 2. The SWR Cache Engine (Polls silently every 10 seconds for live tournament feel)
+  const { data, error, mutate, isLoading } = useSWR(`event-${id}`, fetcher, {
+    refreshInterval: 10000, 
+    revalidateOnFocus: true
+  });
+
+  const currentUser = data?.currentUser || null;
+  const userProfile = data?.userProfile || null;
+  const event = data?.event || null;
+  const participants = data?.participants || [];
+
+  const [actionLoading, setActionLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [adminView, setAdminView] = useState('pending'); 
+  const [isEditingFee, setIsEditingFee] = useState(false);
+  const [newFee, setNewFee] = useState("");
+
+  const [matchScores, setMatchScores] = useState({});
+  const [viewRound, setViewRound] = useState(1);
+  const [initializedRound, setInitializedRound] = useState(false);
+  const [showGuestPrompt, setShowGuestPrompt] = useState(false);
+
+  // Jump to the current active round on initial load
+  useEffect(() => {
+    if (event?.bracket_data?.current_round && !initializedRound) {
+      setViewRound(event.bracket_data.current_round);
+      setInitializedRound(true);
+    }
+  }, [event, initializedRound]);
+
+  if (isLoading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center font-bold text-zinc-500 bg-[#050507]">
+      <div className="w-10 h-10 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"></div>
+    </div>
+  );
+
+  if (error) {
+    router.push("/events");
+    return null;
+  }
 
   const requireAuth = (action) => (e) => {
     if (e) e.preventDefault();
@@ -82,49 +92,38 @@ export default function EventDetails() {
     action(e);
   };
 
+  // --- SWR MUTATION WRAPPERS (Syncs Database to Cache Instantly) --- //
+
   const handleClearBracket = async () => {
     if (!confirm(t('events.alerts.warningReset'))) return;
     setActionLoading(true);
-    
-    const { data, error } = await supabase
-      .from('events')
-      .update({ bracket_data: null, status: 'registration_closed' })
-      .eq('id', id)
-      .select()
-      .single(); 
-      
-    if (error) {
-        alert(error.message);
-    } else {
-        data.host_email = event.host_email;
-        setEvent(data);
-        setViewRound(1);
-        setMatchScores({});
+    const { error } = await supabase.from('events').update({ bracket_data: null, status: 'registration_closed' }).eq('id', id); 
+    if (error) alert(error.message);
+    else {
+      await mutate();
+      setViewRound(1);
+      setMatchScores({});
     }
     setActionLoading(false);
   };
 
   const handleJoin = async () => {
     setActionLoading(true);
-
     const { data: existing } = await supabase.from('event_participants').select('id').eq('event_id', id).eq('user_id', currentUser.id).maybeSingle();
     if (existing) {
-      fetchEventAndUser(); 
+      await mutate(); 
       setActionLoading(false);
       return;
     }
     
     const approvedCount = participants.filter(p => p.status === 'approved').length;
     const isFull = event.max_players && approvedCount >= event.max_players;
-    
-    let joinStatus = 'pending';
-    if (currentUser.id === event.host_id) joinStatus = 'approved'; 
-    else if (isFull) joinStatus = 'waitlist'; 
+    let joinStatus = currentUser.id === event.host_id ? 'approved' : (isFull ? 'waitlist' : 'pending');
 
     const { error } = await supabase.from('event_participants').insert([{ event_id: id, user_id: currentUser.id, status: joinStatus }]);
     if (error && error.code !== '23505') alert(`Database Error: ${error.message}`);
     
-    fetchEventAndUser();
+    await mutate();
     setActionLoading(false);
   };
 
@@ -134,21 +133,21 @@ export default function EventDetails() {
     setActionLoading(true);
     const { error } = await supabase.from('event_participants').delete().eq('event_id', id).eq('user_id', currentUser.id);
     if (error) alert(`Error: ${error.message}`);
-    else fetchEventAndUser();
+    else await mutate();
     setActionLoading(false);
   };
 
   const handleUpdateStatus = async (participantId, newStatus) => {
     setActionLoading(true);
     const { error } = await supabase.from('event_participants').update({ status: newStatus }).eq('id', participantId);
-    if (!error) fetchEventAndUser();
+    if (!error) await mutate();
     setActionLoading(false);
   };
 
   const toggleParticipantState = async (participantId, field, currentValue) => {
     setActionLoading(true);
     const { error } = await supabase.from('event_participants').update({ [field]: !currentValue }).eq('id', participantId);
-    if (!error) fetchEventAndUser();
+    if (!error) await mutate();
     setActionLoading(false);
   };
 
@@ -156,16 +155,17 @@ export default function EventDetails() {
     setActionLoading(true);
     const num = val === 'Open' ? null : parseInt(val);
     const { error } = await supabase.from('events').update({ max_players: num }).eq('id', id);
-    if (!error) fetchEventAndUser();
-    setIsEditingCapacity(false);
+    if (!error) await mutate();
     setActionLoading(false);
   };
 
   const handleUpdateFee = async () => {
     setActionLoading(true);
     const { error } = await supabase.from('events').update({ entry_fee: newFee }).eq('id', id);
-    if (!error) fetchEventAndUser();
-    setIsEditingFee(false);
+    if (!error) {
+       await mutate();
+       setIsEditingFee(false);
+    }
     setActionLoading(false);
   };
 
@@ -174,11 +174,8 @@ export default function EventDetails() {
     if (newStatus === 'registration' && event.bracket_data) return alert(t('events.alerts.resetBeforeReg'));
     
     setActionLoading(true);
-    const { data, error } = await supabase.from('events').update({ status: newStatus }).eq('id', id).select().single();
-    if (!error) {
-        data.host_email = event.host_email;
-        setEvent(data);
-    }
+    const { error } = await supabase.from('events').update({ status: newStatus }).eq('id', id);
+    if (!error) await mutate();
     setActionLoading(false);
   };
 
@@ -254,14 +251,13 @@ export default function EventDetails() {
 
     const bracketData = { rounds, current_round, champion: null };
     
-    const { data, error } = await supabase.from('events').update({ bracket_data: bracketData, status: 'live' }).eq('id', id).select().single();
+    const { error } = await supabase.from('events').update({ bracket_data: bracketData, status: 'live' }).eq('id', id);
     
     if (error) {
         alert(`Bracket Error: ${error.message}`);
     } else {
-        data.host_email = event.host_email;
-        setEvent(data);
-        setViewRound(current_round);
+        const freshData = await mutate();
+        if (freshData?.event?.bracket_data?.current_round) setViewRound(freshData.event.bracket_data.current_round);
     }
     setActionLoading(false);
   };
@@ -303,7 +299,6 @@ export default function EventDetails() {
     match.status = 'completed';
     match.winner_id = s1 > s2 ? match.player1.user_id : match.player2.user_id;
 
-    // SECURE DUPR CALCULATION VIA EDGE FUNCTION
     if (isFirstSave) {
         try {
             const { data, error } = await supabase.functions.invoke('submit-match', {
@@ -323,7 +318,6 @@ export default function EventDetails() {
             if (error) throw new Error(error.message);
             if (data?.error) throw new Error(data.error);
 
-            // Dynamically update UI ratings based on Edge Function response
             if (data?.newRatingA) match.player1.rating = data.newRatingA;
             if (data?.newRatingB) match.player2.rating = data.newRatingB;
 
@@ -335,13 +329,10 @@ export default function EventDetails() {
         alert(t('events.alerts.scoreUpdatedNoDupr'));
     }
 
-    const { data, error } = await supabase.from('events').update({ bracket_data: updatedBracket }).eq('id', id).select().single();
-    if (error) {
-        alert(`Error: ${error.message}`);
-    } else {
-        data.host_email = event.host_email;
-        setEvent(data);
-    }
+    const { error } = await supabase.from('events').update({ bracket_data: updatedBracket }).eq('id', id);
+    if (error) alert(`Error: ${error.message}`);
+    else await mutate();
+    
     setActionLoading(false);
   };
 
@@ -369,15 +360,13 @@ export default function EventDetails() {
     const previousRoundNum = currRound - 1;
     updatedBracket.current_round = previousRoundNum;
 
-    const { data, error } = await supabase.from('events').update({ bracket_data: updatedBracket, status: 'live' }).eq('id', id).select().single();
+    const { error } = await supabase.from('events').update({ bracket_data: updatedBracket, status: 'live' }).eq('id', id);
     
     if (!error) {
-        data.host_email = event.host_email;
-        setEvent(data);
+        await mutate();
         setViewRound(previousRoundNum);
-    } else {
-        alert(`Error: ${error.message}`);
-    }
+    } else alert(`Error: ${error.message}`);
+    
     setActionLoading(false);
   };
 
@@ -391,11 +380,8 @@ export default function EventDetails() {
         if (!confirm(t('events.alerts.confirmCrownChampion'))) { setActionLoading(false); return; }
         const finalMatch = updatedBracket.rounds[currRound][0];
         updatedBracket.champion = finalMatch.winner_id;
-        const { data, error } = await supabase.from('events').update({ status: 'completed', bracket_data: updatedBracket }).eq('id', id).select().single();
-        if (!error) {
-            data.host_email = event.host_email;
-            setEvent(data);
-        }
+        const { error } = await supabase.from('events').update({ status: 'completed', bracket_data: updatedBracket }).eq('id', id);
+        if (!error) await mutate();
     } else {
         if (!confirm(t('events.alerts.confirmLockRound'))) { setActionLoading(false); return; }
         const nextRoundNum = currRound + 1;
@@ -413,10 +399,9 @@ export default function EventDetails() {
         }
 
         updatedBracket.current_round = nextRoundNum;
-        const { data, error } = await supabase.from('events').update({ bracket_data: updatedBracket }).eq('id', id).select().single();
+        const { error } = await supabase.from('events').update({ bracket_data: updatedBracket }).eq('id', id);
         if (!error) {
-            data.host_email = event.host_email;
-            setEvent(data);
+            await mutate();
             setViewRound(nextRoundNum);
         }
     }
@@ -492,12 +477,6 @@ export default function EventDetails() {
       </div>
     );
   };
-
-  if (loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center font-bold text-zinc-500 bg-[#050507]">
-      <div className="w-10 h-10 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"></div>
-    </div>
-  );
 
   const isEventAdmin = currentUser?.id === event?.host_id || userProfile?.role === 'admin';
   const myParticipantRecord = participants.find(p => p.user_id === currentUser?.id);
@@ -882,7 +861,7 @@ export default function EventDetails() {
                       ) : (
                         <div>
                           <p className="text-xl font-black text-white truncate">{event.entry_fee || t('events.create.free')}</p>
-                          <button onClick={() => setIsEditingFee(true)} className="text-green-400 text-[10px] font-bold hover:text-green-300 mt-0.5 uppercase tracking-wider">{t('events.admin.editFee')}</button>
+                          <button onClick={() => { setIsEditingFee(true); setNewFee(event.entry_fee || ""); }} className="text-green-400 text-[10px] font-bold hover:text-green-300 mt-0.5 uppercase tracking-wider">{t('events.admin.editFee')}</button>
                         </div>
                       )}
                     </div>
