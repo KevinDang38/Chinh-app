@@ -19,11 +19,11 @@ export default function EventsList() {
       const { data } = await supabase.from("events").select("*, event_participants(status)").order("begin_date", { ascending: true });
       if (data?.length) {
         const hostIds = [...new Set(data.map((e) => e.host_id).filter(Boolean))];
-        const { data: hosts } = hostIds.length ? await supabase.from("profiles").select("id, email").in("id", hostIds) : { data: [] };
+        const { data: hosts } = hostIds.length ? await supabase.from("profiles").select("id, display_name").in("id", hostIds) : { data: [] };
         setEvents(data.map((ev) => ({
           ...ev,
           approvedCount: (ev.event_participants || []).filter((p) => p.status === "approved").length,
-          host_email: hosts?.find((p) => p.id === ev.host_id)?.email || null,
+          host_name: hosts?.find((p) => p.id === ev.host_id)?.display_name || null,
         })));
       }
       setLoading(false);
@@ -72,7 +72,7 @@ export default function EventsList() {
                       {ev.location && <span className="inline-flex items-center gap-1 min-w-0"><MapPin size={15} className="shrink-0" /><span className="truncate">{ev.location}</span></span>}
                       <span className="inline-flex items-center gap-1"><Users size={15} />{ev.approvedCount}/{ev.max_players || "∞"}</span>
                     </div>
-                    {ev.host_email && <p className="text-[0.8125rem] faint mt-1">{t("events.details.hostedBy")} {displayName(ev.host_email)}</p>}
+                    {ev.host_name && <p className="text-[0.8125rem] faint mt-1">{t("events.details.hostedBy")} {displayName(ev.host_name)}</p>}
                   </div>
                 </Link>
               </li>

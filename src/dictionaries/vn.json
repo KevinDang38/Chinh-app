@@ -291,7 +291,8 @@
     "lobbyFull": "Phòng đã đầy!",
     "invalidPickleballScore": "Điểm số không hợp lệ!\n\nPickleball được đánh chạm 11, 15, hoặc 21 điểm, và bạn phải thắng cách biệt 2 điểm.\n\nNếu trận đấu kéo dài thêm, bạn phải thắng cách biệt CHÍNH XÁC 2 điểm (ví dụ: 12-10, 16-14).",
     "successNewRating": "Thành công! Điểm DUPR mới: ",
-    "submitFailed": "Không lưu được trận đấu:"
+    "submitFailed": "Không lưu được trận đấu:",
+    "slotTaken": "Chỗ này vừa có người. Chọn chỗ khác nhé."
   },
   "auth": {
     "welcomeBack": "Chào mừng trở lại",

@@ -8,6 +8,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { useLanguage } from "../../context/LanguageContext";
 import { Page, Loading, CourtRating, Segmented, ResultTag, Change, Empty, displayName } from "../../components/ui";
 import { summarize, locale } from "../../lib/matchHistory";
+import { PROFILE_COLUMNS, MATCH_COLUMNS } from "../../lib/columns";
 
 export default function Dashboard() {
   const { t, language } = useLanguage();
@@ -22,10 +23,10 @@ export default function Dashboard() {
     }
     const userId = session.user.id;
     const [profileRes, matchesRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", userId).single(),
+      supabase.from("profiles").select(PROFILE_COLUMNS).eq("id", userId).single(),
       supabase
         .from("matches")
-        .select("*")
+        .select(MATCH_COLUMNS)
         .eq("counted", true)
         .or(`player_a_id.eq.${userId},team_a_player2_id.eq.${userId},team_b_player1_id.eq.${userId},team_b_player2_id.eq.${userId}`)
         .order("created_at", { ascending: true }),

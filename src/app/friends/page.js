@@ -26,7 +26,7 @@ export default function Friends() {
       const { data: connections } = await supabase.from("friends").select("user_id, friend_id").or(`user_id.eq.${userId},friend_id.eq.${userId}`);
       if (connections?.length) {
         const friendIds = [...new Set(connections.map((c) => (c.user_id === userId ? c.friend_id : c.user_id)))];
-        const { data: friendProfiles } = await supabase.from("profiles").select("id, email, rating, profile_hash").in("id", friendIds);
+        const { data: friendProfiles } = await supabase.from("profiles").select("id, display_name, rating, profile_hash").in("id", friendIds);
         setFriends((friendProfiles || []).sort((a, b) => b.rating - a.rating));
       } else setFriends([]);
     } else {
@@ -43,8 +43,9 @@ export default function Friends() {
     if (!user) return setShowGuestPrompt(true);
     setSearchLoading(true);
     setMessage(null);
-    const email = searchEmail.toLowerCase().trim();
-    const { data: friendProfile } = await supabase.from("profiles").select("id").eq("email", email).maybeSingle();
+    // Emails are private: a server function matches the exact email and returns only the id/name.
+    const { data: found } = await supabase.rpc("find_player_by_email", { p_email: searchEmail });
+    const friendProfile = found?.[0];
     if (!friendProfile) setMessage({ ok: false, text: t("friends.notFound") });
     else if (friendProfile.id === user.id) setMessage({ ok: false, text: t("friends.notYourself") });
     else if (friends.some((f) => f.id === friendProfile.id)) setMessage({ ok: false, text: t("friends.already") });
@@ -85,8 +86,8 @@ export default function Friends() {
             <li key={friend.id}>
               <Link href={`/profile/${friend.profile_hash}`} className="flex items-center gap-3 px-4 py-3 min-h-16 hover:bg-court-tint/50">
                 <span className="num w-6 text-center faint">{i + 1}</span>
-                <Avatar email={friend.email} />
-                <span className="font-semibold flex-1 truncate">{displayName(friend.email)}</span>
+                <Avatar name={friend.display_name} />
+                <span className="font-semibold flex-1 truncate">{displayName(friend.display_name)}</span>
                 <span className="num text-lg">{Number(friend.rating).toFixed(3)}</span>
                 <ChevronRight size={18} className="faint" />
               </Link>

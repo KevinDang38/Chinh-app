@@ -8,6 +8,7 @@ import { useLanguage } from "../../../context/LanguageContext";
 import { Page, Loading, Empty, Avatar, Segmented, ScoreStepper, Sheet, displayName } from "../../../components/ui";
 import { normalizeStatus, statusLabel, statusTag, isDoublesEvent } from "../../../lib/eventStatus";
 import { locale } from "../../../lib/matchHistory";
+import { PROFILE_COLUMNS } from "../../../lib/columns";
 
 export default function EventDetails() {
   const { id } = useParams();
@@ -22,7 +23,7 @@ export default function EventDetails() {
     let userProfile = null;
 
     if (userId) {
-      const { data: prof } = await supabase.from('profiles').select('*').eq('id', userId).single();
+      const { data: prof } = await supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', userId).single();
       userProfile = prof;
     }
 
@@ -30,13 +31,13 @@ export default function EventDetails() {
     if (eventErr || !eventData) throw new Error("Event not found");
 
     if (eventData.host_id) {
-       const { data: hostData } = await supabase.from('profiles').select('email').eq('id', eventData.host_id).maybeSingle();
-       eventData.host_email = hostData?.email || 'Admin';
+       const { data: hostData } = await supabase.from('profiles').select('display_name').eq('id', eventData.host_id).maybeSingle();
+       eventData.host_name = hostData?.display_name || null;
     }
 
     const { data: partData } = await supabase
       .from('event_participants')
-      .select('*, profiles!inner(email, rating, profile_hash)')
+      .select('*, profiles!inner(display_name, rating, profile_hash)')
       .eq('event_id', id);
 
     return { currentUser, userProfile, event: eventData, participants: partData || [] };
@@ -196,7 +197,7 @@ export default function EventDetails() {
     setActionLoading(true);
     
     const seededPlayers = [...approved].sort((a, b) => (b.profiles?.rating || 0) - (a.profiles?.rating || 0))
-      .map(p => ({ user_id: p.user_id, email: p.profiles?.email, rating: p.profiles?.rating }));
+      .map(p => ({ user_id: p.user_id, name: p.profiles?.display_name, rating: p.profiles?.rating }));
 
     const numPlayers = seededPlayers.length;
     const bracketSize = Math.pow(2, Math.ceil(Math.log2(numPlayers || 1)));
@@ -444,9 +445,9 @@ export default function EventDetails() {
     return (
       <li className="flex flex-wrap items-center gap-3 px-4 py-3">
         {(viewType === 'public' || viewType === 'roster' || viewType === 'waitlist') && <span className="num w-7 text-center faint">{idx + 1}</span>}
-        <Avatar email={p.profiles?.email} you={p.user_id === currentUser?.id} />
+        <Avatar name={p.profiles?.display_name} you={p.user_id === currentUser?.id} />
         <div className="min-w-0 flex-1">
-          <p className="font-semibold truncate">{p.profiles?.email ? displayName(p.profiles.email) : t('events.details.unknownUser')}</p>
+          <p className="font-semibold truncate">{p.profiles?.display_name ? displayName(p.profiles.display_name) : t('events.details.unknownUser')}</p>
           <p className="text-[0.8125rem] faint">{t('common.rating')} <span className="num">{Number(p.profiles?.rating || 0).toFixed(3)}</span></p>
         </div>
         {viewType === 'pending' && (
@@ -504,7 +505,7 @@ export default function EventDetails() {
           {[
             [t('events.create.begin_date'), fmtDate(event.begin_date)],
             [t('events.create.location'), event.location || '—'],
-            [t('events.details.hostedBy'), event.host_email ? displayName(event.host_email) : t('common.guest')],
+            [t('events.details.hostedBy'), event.host_name ? displayName(event.host_name) : t('common.guest')],
             [t('events.details.registered'), `${displayRegistered} / ${event.max_players || '∞'}`],
             [t('events.details.ratingRange'), `${Number(event.min_dupr ?? 0).toFixed(1)} – ${Number(event.max_dupr ?? 8).toFixed(1)}`],
             [t('events.details.entryFee'), event.entry_fee || t('events.create.free')],
@@ -582,7 +583,7 @@ export default function EventDetails() {
                   <div>
                     <p className="text-[0.9375rem]">{t('events.bracket.champion')}</p>
                     <p className="num text-[1.75rem] leading-tight">
-                      {displayName(approvedParticipants.find(p => p.user_id === event.bracket_data.champion)?.profiles?.email, t('common.guest'))}
+                      {displayName(approvedParticipants.find(p => p.user_id === event.bracket_data.champion)?.profiles?.display_name, t('common.guest'))}
                     </p>
                   </div>
                 </section>
@@ -606,8 +607,8 @@ export default function EventDetails() {
                     return (
                       <div className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl ${won ? 'bg-win-tint' : ''}`}>
                         <div className="flex items-center gap-3 min-w-0">
-                          <Avatar email={player?.email} size={32} you={player?.user_id === currentUser?.id} />
-                          <span className={`truncate ${won ? 'font-bold' : 'font-medium'} ${player ? '' : 'faint'}`}>{player?.email ? displayName(player.email) : fallback}</span>
+                          <Avatar name={player?.name ?? player?.email} size={32} you={player?.user_id === currentUser?.id} />
+                          <span className={`truncate ${won ? 'font-bold' : 'font-medium'} ${player ? '' : 'faint'}`}>{(player?.name ?? player?.email) ? displayName(player.name ?? player.email) : fallback}</span>
                         </div>
                         <span className="num text-lg">{match.is_bye || match.status !== 'completed' ? '–' : score}</span>
                       </div>

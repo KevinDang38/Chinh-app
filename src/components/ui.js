@@ -3,22 +3,23 @@ import { useEffect } from "react";
 import { Minus, Plus, X } from "lucide-react";
 
 // ---------- names & avatars ----------
-export const displayName = (email, fallback = "Guest") => {
-  if (!email) return fallback;
-  return email.split("@")[0];
+/** Accepts a display name, or an email (only ever the signed-in user's own). */
+export const displayName = (name, fallback = "Guest") => {
+  if (!name) return fallback;
+  return name.split("@")[0];
 };
 
-export function Avatar({ email, you = false, size = 40 }) {
-  const initials = email ? email.substring(0, 2).toUpperCase() : "?";
+export function Avatar({ name, you = false, size = 40 }) {
+  const initials = name ? name.substring(0, 2).toUpperCase() : "?";
   return (
     <span
       aria-hidden
       style={{ width: size, height: size, fontSize: size * 0.34 }}
       className={`shrink-0 inline-flex items-center justify-center rounded-full font-bold ${
-        you ? "bg-volt text-volt-ink" : email ? "bg-court-tint text-court-text" : "border border-dashed border-ink-3 text-ink-3"
+        you ? "bg-volt text-volt-ink" : name ? "bg-court-tint text-court-text" : "border border-dashed border-ink-3 text-ink-3"
       }`}
     >
-      {email ? initials : "?"}
+      {name ? initials : "?"}
     </span>
   );
 }

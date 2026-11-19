@@ -1,0 +1,7 @@
+-- Applied 2026-11-19 via Supabase MCP as "security_hardening_v1" (kept here for history).
+-- 1) Row rules: only hosts manage participants; players add/remove only themselves; friend links
+--    only by their members; only hosts change lobbies, others join via join_lobby(); events created as yourself.
+-- 2) Emails private: profiles.display_name added; email + matches.player_b_email not readable by the app;
+--    find_player_by_email() for add-friend; emails stripped from saved brackets.
+-- 3) handle_new_user(): search_path pinned, not callable via API; rls_auto_enable() not callable via API.
+-- Full SQL: see the Supabase migration history for this project.

@@ -7,6 +7,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import { useLanguage } from "../../../context/LanguageContext";
 import { Page, Loading, CourtRating, Segmented, ResultTag, Change, Empty, Avatar, displayName } from "../../../components/ui";
 import { summarize } from "../../../lib/matchHistory";
+import { PROFILE_COLUMNS, MATCH_COLUMNS } from "../../../lib/columns";
 
 export default function UserProfile() {
   const { id } = useParams();
@@ -26,7 +27,7 @@ export default function UserProfile() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) setCurrentUser(session.user);
 
-      const { data: profileData } = await supabase.from("profiles").select("*").eq("profile_hash", id).single();
+      const { data: profileData } = await supabase.from("profiles").select(PROFILE_COLUMNS).eq("profile_hash", id).single();
       if (!profileData) return router.push("/dashboard");
       setProfile(profileData);
       const targetUserId = profileData.id;
@@ -40,11 +41,11 @@ export default function UserProfile() {
       const { data: connections } = await supabase.from("friends").select("user_id, friend_id").or(`user_id.eq.${targetUserId},friend_id.eq.${targetUserId}`);
       if (connections?.length) {
         const friendIds = [...new Set(connections.map((c) => (c.user_id === targetUserId ? c.friend_id : c.user_id)))];
-        const { data: friendProfiles } = await supabase.from("profiles").select("id, email, rating, profile_hash").in("id", friendIds);
+        const { data: friendProfiles } = await supabase.from("profiles").select("id, display_name, rating, profile_hash").in("id", friendIds);
         if (friendProfiles) setFriends(friendProfiles);
       }
 
-      const { data: matchData } = await supabase.from("matches").select("*").eq("counted", true)
+      const { data: matchData } = await supabase.from("matches").select(MATCH_COLUMNS).eq("counted", true)
         .or(`player_a_id.eq.${targetUserId},team_a_player2_id.eq.${targetUserId},team_b_player1_id.eq.${targetUserId},team_b_player2_id.eq.${targetUserId}`)
         .order("created_at", { ascending: true });
       setMatches(matchData || []);
@@ -69,9 +70,9 @@ export default function UserProfile() {
   return (
     <Page wide>
       <header className="flex items-center gap-4 mb-5">
-        <Avatar email={profile.email} you={isMe} size={56} />
+        <Avatar name={profile.display_name} you={isMe} size={56} />
         <div className="min-w-0 flex-1">
-          <h1 className="title truncate">{displayName(profile.email)}</h1>
+          <h1 className="title truncate">{displayName(profile.display_name)}</h1>
           <p className="muted text-[0.9375rem]">{profile.region && profile.region !== "Global" ? profile.region : `${t("profile.profileId")} ${profile.profile_hash}`}</p>
         </div>
         {!isMe && (isFriend
@@ -127,8 +128,8 @@ export default function UserProfile() {
               {friends.map((f) => (
                 <li key={f.id}>
                   <Link href={`/profile/${f.profile_hash}`} className="flex items-center gap-3 px-4 py-3 hover:bg-court-tint/50">
-                    <Avatar email={f.email} you={f.id === currentUser?.id} />
-                    <span className="font-semibold flex-1 truncate">{displayName(f.email)}</span>
+                    <Avatar name={f.display_name} you={f.id === currentUser?.id} />
+                    <span className="font-semibold flex-1 truncate">{displayName(f.display_name)}</span>
                     <span className="num">{Number(f.rating).toFixed(3)}</span>
                     <ChevronRight size={18} className="faint" />
                   </Link>

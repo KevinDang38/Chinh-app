@@ -291,7 +291,8 @@
     "lobbyFull": "Full lobby!",
     "invalidPickleballScore": "Invalid Score!\n\nPickleball games are played to 11, 15, or 21 points, and you must win by 2.\n\nIf the game goes into overtime, you must win by EXACTLY 2 points (e.g., 12-10, 16-14).",
     "successNewRating": "Success! New Rating: ",
-    "submitFailed": "Couldn't save the match:"
+    "submitFailed": "Couldn't save the match:",
+    "slotTaken": "That spot was just taken. Pick another."
   },
   "auth": {
     "welcomeBack": "Welcome Back",

@@ -3,17 +3,18 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Plus } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
+import { MATCH_COLUMNS } from "../lib/columns";
 import { useLanguage } from "../context/LanguageContext";
 import { Avatar, displayName, Page, Segmented, ScoreStepper, Sheet, Change } from "../components/ui";
 
 // ---------- small pieces ----------
-function PlayerLine({ email, label, you, t }) {
+function PlayerLine({ name, label, you, t }) {
   return (
     <div className="flex items-center gap-3 min-w-0">
-      <Avatar email={email} you={you} />
+      <Avatar name={name} you={you} />
       <div className="min-w-0">
         <p className="text-[0.8125rem] faint leading-tight">{label}</p>
-        <p className="font-semibold truncate">{email ? displayName(email) : t("common.guest")}</p>
+        <p className="font-semibold truncate">{name ? displayName(name) : t("common.guest")}</p>
       </div>
     </div>
   );
@@ -22,7 +23,7 @@ function PlayerLine({ email, label, you, t }) {
 function WaitingLine({ label, t }) {
   return (
     <div className="flex items-center gap-3 min-w-0">
-      <Avatar email={null} />
+      <Avatar name={null} />
       <div className="min-w-0">
         <p className="text-[0.8125rem] faint leading-tight">{label}</p>
         <p className="font-semibold faint">{t("common.waiting")}</p>
@@ -58,7 +59,7 @@ function FriendPicker({ title, selected, onChange, excludeIds = [], friends, t }
         </button>
         {friends.filter((f) => !excludeIds.includes(f.id)).map((f) => (
           <button key={f.id} type="button" className="chip shrink-0" aria-pressed={selected?.id === f.id} onClick={() => onChange(f)}>
-            {displayName(f.email)}
+            {displayName(f.display_name)}
           </button>
         ))}
       </div>
@@ -123,7 +124,7 @@ export default function Home() {
       const { data: connections } = await supabase.from("friends").select("user_id, friend_id").or(`user_id.eq.${userId},friend_id.eq.${userId}`);
       if (connections?.length) {
         const friendIds = [...new Set(connections.map((c) => (c.user_id === userId ? c.friend_id : c.user_id)))];
-        const { data: friendProfiles } = await supabase.from("profiles").select("id, email, rating, profile_hash").in("id", friendIds);
+        const { data: friendProfiles } = await supabase.from("profiles").select("id, display_name, rating, profile_hash").in("id", friendIds);
         if (friendProfiles) setFriends(friendProfiles);
       }
     };
@@ -149,7 +150,7 @@ export default function Home() {
 
         if (payload.new.status === "completed" && viewMode === "join") {
           setTimeout(async () => {
-            const { data } = await supabase.from("matches").select("*").eq("player_a_id", payload.new.host_id).order("created_at", { ascending: false }).limit(1).single();
+            const { data } = await supabase.from("matches").select(MATCH_COLUMNS).eq("player_a_id", payload.new.host_id).order("created_at", { ascending: false }).limit(1).single();
             if (data) setFinalMatchDetails(data);
           }, 1000);
         }
@@ -162,7 +163,7 @@ export default function Home() {
     if (!lobbyState) return;
     const fetchProfiles = async () => {
       const ids = [lobbyState.host_id, lobbyState.team_a_player2_id, lobbyState.team_b_player1_id, lobbyState.team_b_player2_id].filter(Boolean);
-      const { data } = await supabase.from("profiles").select("id, email, rating").in("id", ids);
+      const { data } = await supabase.from("profiles").select("id, display_name, rating").in("id", ids);
       if (data) {
         const map = {};
         data.forEach((p) => (map[p.id] = p));
@@ -231,8 +232,10 @@ export default function Home() {
   };
 
   const completeJoin = async (pin, slot, lobbyData) => {
-    if (user) await supabase.from("match_lobbies").update({ [slot]: user.id }).eq("pin", pin);
-    else setGuestSlot(slot);
+    if (user) {
+      const { data: joined } = await supabase.rpc("join_lobby", { p_pin: pin, p_slot: slot });
+      if (!joined) return alert(t("alerts.slotTaken"));
+    } else setGuestSlot(slot);
     setLobbyPin(pin);
     if (lobbyData) setLobbyState(lobbyData);
     else if (pendingJoinLobby) setLobbyState(pendingJoinLobby);
@@ -325,8 +328,8 @@ export default function Home() {
                 <FriendPicker title={t("logMatch.partner")} selected={partner} onChange={setPartner}
                   excludeIds={[opponent1?.id, opponent2?.id].filter(Boolean)} friends={friends} t={t} />
               )}>
-              <PlayerLine email={user?.email} label={t("logMatch.you")} you t={t} />
-              {isDoubles && <PlayerLine email={partner?.email} label={t("logMatch.partner")} t={t} />}
+              <PlayerLine name={user?.email} label={t("logMatch.you")} you t={t} />
+              {isDoubles && <PlayerLine name={partner?.display_name} label={t("logMatch.partner")} t={t} />}
             </Side>
 
             <Side title={t("logMatch.opponents")} accent="bg-court" score={teamBScore} setScore={setTeamBScore}
@@ -338,8 +341,8 @@ export default function Home() {
                     excludeIds={[partner?.id, opponent1?.id].filter(Boolean)} friends={friends} t={t} />
                 )}
               </>}>
-              <PlayerLine email={opponent1?.email} label={t("logMatch.opponent1")} t={t} />
-              {isDoubles && <PlayerLine email={opponent2?.email} label={t("logMatch.opponent2")} t={t} />}
+              <PlayerLine name={opponent1?.display_name} label={t("logMatch.opponent1")} t={t} />
+              {isDoubles && <PlayerLine name={opponent2?.display_name} label={t("logMatch.opponent2")} t={t} />}
             </Side>
 
             <p className="text-[0.8125rem] faint px-1">{t("logMatch.scoreHint")}</p>
@@ -369,16 +372,16 @@ export default function Home() {
             </section>
 
             <Side title={t("logMatch.teamA")} accent="bg-volt" score={teamAScore} setScore={setTeamAScore}>
-              {lp(lobbyState?.host_id) ? <PlayerLine email={lp(lobbyState.host_id).email} label={t("logMatch.hostRole")} you t={t} /> : <WaitingLine label={t("logMatch.hostRole")} t={t} />}
+              {lp(lobbyState?.host_id) ? <PlayerLine name={lp(lobbyState.host_id).display_name} label={t("logMatch.hostRole")} you t={t} /> : <WaitingLine label={t("logMatch.hostRole")} t={t} />}
               {liveDoubles && (lp(lobbyState?.team_a_player2_id)
-                ? <PlayerLine email={lp(lobbyState.team_a_player2_id).email} label={t("logMatch.partner")} t={t} />
+                ? <PlayerLine name={lp(lobbyState.team_a_player2_id).display_name} label={t("logMatch.partner")} t={t} />
                 : <WaitingLine label={t("logMatch.partner")} t={t} />)}
             </Side>
 
             <Side title={t("logMatch.teamB")} accent="bg-court" score={teamBScore} setScore={setTeamBScore}>
-              {lp(lobbyState?.team_b_player1_id) ? <PlayerLine email={lp(lobbyState.team_b_player1_id).email} label={t("logMatch.p1Role")} t={t} /> : <WaitingLine label={t("logMatch.p1Role")} t={t} />}
+              {lp(lobbyState?.team_b_player1_id) ? <PlayerLine name={lp(lobbyState.team_b_player1_id).display_name} label={t("logMatch.p1Role")} t={t} /> : <WaitingLine label={t("logMatch.p1Role")} t={t} />}
               {liveDoubles && (lp(lobbyState?.team_b_player2_id)
-                ? <PlayerLine email={lp(lobbyState.team_b_player2_id).email} label={t("logMatch.p2Role")} t={t} />
+                ? <PlayerLine name={lp(lobbyState.team_b_player2_id).display_name} label={t("logMatch.p2Role")} t={t} />
                 : <WaitingLine label={t("logMatch.p2Role")} t={t} />)}
             </Side>
 
@@ -430,13 +433,13 @@ export default function Home() {
             <h2 className="heading">{lobbyState.status === "completed" ? t("logMatch.finalScore") : t("logMatch.liveMatch")}</h2>
             <Side title={t("logMatch.teamA")} accent="bg-volt">
               <div className="flex items-center justify-between gap-3">
-                {lp(lobbyState.host_id) ? <PlayerLine email={lp(lobbyState.host_id).email} label={t("logMatch.hostRole")} t={t} /> : <WaitingLine label={t("logMatch.hostRole")} t={t} />}
+                {lp(lobbyState.host_id) ? <PlayerLine name={lp(lobbyState.host_id).display_name} label={t("logMatch.hostRole")} t={t} /> : <WaitingLine label={t("logMatch.hostRole")} t={t} />}
                 <span className="num text-[2.25rem]">{lobbyState.status === "completed" && finalMatchDetails ? finalMatchDetails.player_a_score : "–"}</span>
               </div>
             </Side>
             <Side title={t("logMatch.teamB")} accent="bg-court">
               <div className="flex items-center justify-between gap-3">
-                {lp(lobbyState.team_b_player1_id) ? <PlayerLine email={lp(lobbyState.team_b_player1_id).email} label={t("logMatch.p1Role")} t={t} /> : <WaitingLine label={t("logMatch.p1Role")} t={t} />}
+                {lp(lobbyState.team_b_player1_id) ? <PlayerLine name={lp(lobbyState.team_b_player1_id).display_name} label={t("logMatch.p1Role")} t={t} /> : <WaitingLine label={t("logMatch.p1Role")} t={t} />}
                 <span className="num text-[2.25rem]">{lobbyState.status === "completed" && finalMatchDetails ? finalMatchDetails.player_b_score : "–"}</span>
               </div>
             </Side>
