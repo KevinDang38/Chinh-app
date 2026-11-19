@@ -203,7 +203,9 @@
       "semifinals": "Semifinals",
       "quarterfinals": "Quarterfinals",
       "roundOf": "Round of",
-      "final": "Final"
+      "final": "Final",
+      "crown": "Crown champion",
+      "lockRound": "Lock round"
     },
     "admin": {
       "tournamentEngine": "Tournament Engine",
@@ -281,6 +283,18 @@
       "confirmLockRound": "Lock Round scores and generate next matchups?",
       "bracketExists": "Bracket Generated",
       "cannotModifyRoster": "Cannot modify roster while bracket is active"
+    },
+    "teams": {
+      "title": "Teams",
+      "desc": "Players are paired strongest with weakest so teams are even. Tap two players to swap them.",
+      "pair": "Pair teams",
+      "repair": "Pair again",
+      "paired": "Teams paired.",
+      "stale": "The roster changed since pairing. Pair the teams again.",
+      "swapHint": "Tap a player, then another player, to swap them.",
+      "swapSecond": "Now tap the player to swap with.",
+      "team": "Team",
+      "ready": "Teams paired for the current roster"
     }
   },
   "alerts": {
@@ -292,7 +306,11 @@
     "invalidPickleballScore": "Invalid Score!\n\nPickleball games are played to 11, 15, or 21 points, and you must win by 2.\n\nIf the game goes into overtime, you must win by EXACTLY 2 points (e.g., 12-10, 16-14).",
     "successNewRating": "Success! New Rating: ",
     "submitFailed": "Couldn't save the match:",
-    "slotTaken": "That spot was just taken. Pick another."
+    "slotTaken": "That spot was just taken. Pick another.",
+    "cooldown": "You just logged a match. You can log the next one in {n} min.",
+    "lobbyFailed": "Couldn't open a lobby. Try again.",
+    "notAllowed": "You don't have permission to do that.",
+    "somethingWrong": "Something went wrong:"
   },
   "auth": {
     "welcomeBack": "Welcome Back",

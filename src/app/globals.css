@@ -144,7 +144,7 @@ body {
     font-weight: 600; font-size: 0.9375rem; color: var(--color-ink-2);
     transition: background-color .15s, color .15s;
   }
-  .seg > button[aria-pressed="true"] { background: var(--color-surface); color: var(--color-ink); box-shadow: 0 1px 2px rgb(19 34 56 / .12); }
+  .seg > button[aria-pressed="true"], .seg > button[aria-selected="true"] { background: var(--color-surface); color: var(--color-ink); box-shadow: 0 1px 2px rgb(19 34 56 / .12); }
 
   /* ---- form fields ---- */
   .field {

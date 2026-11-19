@@ -7,7 +7,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { supabase } from "../../lib/supabaseClient";
 import { useLanguage } from "../../context/LanguageContext";
 import { Page, Loading, CourtRating, Segmented, ResultTag, Change, Empty, displayName } from "../../components/ui";
-import { summarize, locale } from "../../lib/matchHistory";
+import { summarize } from "../../lib/matchHistory";
 import { PROFILE_COLUMNS, MATCH_COLUMNS } from "../../lib/columns";
 
 export default function Dashboard() {

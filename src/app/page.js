@@ -5,9 +5,13 @@ import { Check, Plus } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { MATCH_COLUMNS } from "../lib/columns";
 import { useLanguage } from "../context/LanguageContext";
-import { Avatar, displayName, Page, Segmented, ScoreStepper, Sheet, Change } from "../components/ui";
+import { Avatar, displayName, Page, Segmented, ScoreStepper, Sheet, Change, useDialogs } from "../components/ui";
+import { callServer, errorText } from "../lib/api";
 
 // ---------- small pieces ----------
+const randomPin = () => String(1000 + Math.floor(Math.random() * 9000));
+const LOBBY_HOURS = 3; // live lobbies can be joined for this long
+const lobbyCutoff = () => new Date(Date.now() - LOBBY_HOURS * 3600_000).toISOString();
 function PlayerLine({ name, label, you, t }) {
   return (
     <div className="flex items-center gap-3 min-w-0">
@@ -70,6 +74,7 @@ function FriendPicker({ title, selected, onChange, excludeIds = [], friends, t }
 export default function Home() {
   const { t } = useLanguage();
   const router = useRouter();
+  const { notify, dialogs } = useDialogs();
 
   const [user, setUser] = useState(null);
   const [friends, setFriends] = useState([]);
@@ -105,9 +110,7 @@ export default function Home() {
       localStorage.removeItem("pendingClaim");
       try {
         const { matchId, mySlot } = JSON.parse(claim);
-        const { data, error } = await supabase.functions.invoke("submit-match", { body: { action: "claim", matchId, slot: mySlot } });
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
+        const data = await callServer({ action: "claim", matchId, slot: mySlot });
         setResult({ newRating: data.newRating, change: data.change });
       } catch (e) {
         console.error("Failed to claim match", e);
@@ -140,7 +143,7 @@ export default function Home() {
         if (pendingJoinLobby) setPendingJoinLobby(payload.new);
 
         if (payload.new.status === "cancelled" && viewMode === "join") {
-          alert(t("alerts.lobbyCancelled"));
+          notify(t("alerts.lobbyCancelled"));
           setLobbyPin(null);
           setLobbyState(null);
           setIsJoined(false);
@@ -148,16 +151,14 @@ export default function Home() {
           setFinalMatchDetails(null);
         }
 
-        if (payload.new.status === "completed" && viewMode === "join") {
-          setTimeout(async () => {
-            const { data } = await supabase.from("matches").select(MATCH_COLUMNS).eq("player_a_id", payload.new.host_id).order("created_at", { ascending: false }).limit(1).single();
-            if (data) setFinalMatchDetails(data);
-          }, 1000);
+        if (payload.new.status === "completed" && viewMode === "join" && payload.new.match_id) {
+          supabase.from("matches").select(MATCH_COLUMNS).eq("id", payload.new.match_id).single()
+            .then(({ data }) => data && setFinalMatchDetails(data));
         }
       })
       .subscribe();
     return () => supabase.removeChannel(channel);
-  }, [lobbyPin, viewMode, pendingJoinLobby, t]);
+  }, [lobbyPin, viewMode, pendingJoinLobby, t, notify]);
 
   useEffect(() => {
     if (!lobbyState) return;
@@ -189,10 +190,18 @@ export default function Home() {
   };
 
   const hostLobby = async () => {
-    const newPin = Math.floor(1000 + Math.random() * 9000).toString();
-    const { data } = await supabase.from("match_lobbies").insert([{ pin: newPin, host_id: user.id, match_type: matchType }]).select().single();
-    setLobbyPin(newPin);
-    setLobbyState(data);
+    // PINs are unique among open lobbies; try a few random ones if one is taken.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const newPin = randomPin();
+      const { data, error } = await supabase.from("match_lobbies").insert([{ pin: newPin, host_id: user.id, match_type: matchType }]).select().single();
+      if (!error) {
+        setLobbyPin(newPin);
+        setLobbyState(data);
+        return;
+      }
+      if (error.code !== "23505") break;
+    }
+    notify(t("alerts.lobbyFailed"));
   };
 
   const cancelLobby = async () => {
@@ -206,9 +215,9 @@ export default function Home() {
 
   const joinLobby = async (e) => {
     e.preventDefault();
-    const { data: lobby } = await supabase.from("match_lobbies").select("*").eq("pin", joinPinInput).eq("status", "waiting").single();
-    if (!lobby) return alert(t("alerts.invalidPin"));
-    if (user && user.id === lobby.host_id) return alert(t("alerts.alreadyHost"));
+    const { data: lobby } = await supabase.from("match_lobbies").select("*").eq("pin", joinPinInput).eq("status", "waiting").gt("created_at", lobbyCutoff()).maybeSingle();
+    if (!lobby) return notify(t("alerts.invalidPin"));
+    if (user && user.id === lobby.host_id) return notify(t("alerts.alreadyHost"));
 
     if (user && [lobby.team_a_player2_id, lobby.team_b_player1_id, lobby.team_b_player2_id].includes(user.id)) {
       setLobbyPin(joinPinInput);
@@ -234,7 +243,7 @@ export default function Home() {
   const completeJoin = async (pin, slot, lobbyData) => {
     if (user) {
       const { data: joined } = await supabase.rpc("join_lobby", { p_pin: pin, p_slot: slot });
-      if (!joined) return alert(t("alerts.slotTaken"));
+      if (!joined) return notify(t("alerts.slotTaken"));
     } else setGuestSlot(slot);
     setLobbyPin(pin);
     if (lobbyData) setLobbyState(lobbyData);
@@ -262,12 +271,11 @@ export default function Home() {
     const margin = maxScore - Math.min(scoreA, scoreB);
     const isStandardWin = [11, 15, 21].includes(maxScore) && margin >= 2;
     const isOvertimeWin = maxScore > 11 && margin === 2;
-    if (!isStandardWin && !isOvertimeWin) return alert(t("alerts.invalidPickleballScore"));
+    if (!isStandardWin && !isOvertimeWin) return notify(t("alerts.invalidPickleballScore"));
 
     setIsSubmitting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("submit-match", {
-        body: {
+      const data = await callServer({
           isLive,
           lobbyPin,
           matchType: isLive ? lobbyState.match_type : matchType,
@@ -277,13 +285,10 @@ export default function Home() {
           partnerId: isLive ? lobbyState.team_a_player2_id : partner?.id,
           opp1Id: isLive ? lobbyState.team_b_player1_id : opponent1?.id,
           opp2Id: isLive ? lobbyState.team_b_player2_id : opponent2?.id,
-        },
       });
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
       setResult({ newRating: data.newRating, change: data.changes?.[user.id]?.change });
     } catch (err) {
-      alert(`${t("alerts.submitFailed")} ${err.message}`);
+      notify(errorText(err, t));
     } finally {
       setIsSubmitting(false);
     }
@@ -462,6 +467,8 @@ export default function Home() {
         <button onClick={() => router.push("/dashboard")} className="btn btn-primary w-full">{t("logMatch.seeDashboard")}</button>
         <button onClick={() => { setResult(null); router.refresh(); }} className="btn btn-quiet w-full mt-2">{t("logMatch.logAnother")}</button>
       </Sheet>
+
+      {dialogs}
 
       {/* ---------- guest prompt ---------- */}
       <Sheet open={showGuestPrompt} onClose={() => setShowGuestPrompt(false)} title={t("guest.title")}>

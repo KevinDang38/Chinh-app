@@ -1,42 +1,42 @@
 "use client";
-import { createContext, useState, useContext, useEffect } from "react";
+import { createContext, useContext, useEffect, useSyncExternalStore } from "react";
 import en from "../dictionaries/en.json";
 import vn from "../dictionaries/vn.json";
 
 const dictionaries = { en, vn };
 const LanguageContext = createContext();
 
-export function LanguageProvider({ children }) {
-  const [language, setLanguage] = useState("en");
+// The chosen language lives in localStorage; this tiny store lets React read it without an effect.
+const listeners = new Set();
+const subscribe = (cb) => { listeners.add(cb); return () => listeners.delete(cb); };
+const read = () => {
+  try { return localStorage.getItem("app_lang") === "vn" ? "vn" : "en"; } catch { return "en"; }
+};
 
-  // Load saved language from browser storage on load
+export function LanguageProvider({ children }) {
+  const language = useSyncExternalStore(subscribe, read, () => "en");
+
+  // Keep <html lang> in step so screen readers and the browser use the right language.
   useEffect(() => {
-    const storedLang = localStorage.getItem("app_lang");
-    if (storedLang) setLanguage(storedLang);
-  }, []);
+    document.documentElement.lang = language === "vn" ? "vi" : "en";
+  }, [language]);
 
   const toggleLanguage = () => {
-    const newLang = language === "en" ? "vn" : "en";
-    setLanguage(newLang);
-    localStorage.setItem("app_lang", newLang);
+    try { localStorage.setItem("app_lang", language === "en" ? "vn" : "en"); } catch {}
+    listeners.forEach((cb) => cb());
   };
 
-  // Translation function: looks up keys like "sidebar.dashboard"
+  // Looks up keys like "sidebar.dashboard"; falls back to the key name if missing.
   const t = (key) => {
-    const keys = key.split(".");
     let value = dictionaries[language];
-    for (const k of keys) {
-      if (value[k] === undefined) return key; // Fallback to key name if missing
+    for (const k of key.split(".")) {
+      if (value?.[k] === undefined) return key;
       value = value[k];
     }
     return value;
   };
 
-  return (
-    <LanguageContext.Provider value={{ language, toggleLanguage, t }}>
-      {children}
-    </LanguageContext.Provider>
-  );
+  return <LanguageContext.Provider value={{ language, toggleLanguage, t }}>{children}</LanguageContext.Provider>;
 }
 
 export const useLanguage = () => useContext(LanguageContext);

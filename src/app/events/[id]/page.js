@@ -1,11 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import { Check, X, Users, Clock, Crown, LogOut, RotateCcw, AlertTriangle, ChevronLeft } from "lucide-react";
 import { supabase } from "../../../lib/supabaseClient";
 import { useLanguage } from "../../../context/LanguageContext";
-import { Page, Loading, Empty, Avatar, Segmented, ScoreStepper, Sheet, displayName } from "../../../components/ui";
+import { Page, Loading, Empty, Avatar, Segmented, ScoreStepper, Sheet, displayName, useDialogs } from "../../../components/ui";
+import { callServer, errorText } from "../../../lib/api";
 import { normalizeStatus, statusLabel, statusTag, isDoublesEvent } from "../../../lib/eventStatus";
 import { locale } from "../../../lib/matchHistory";
 import { PROFILE_COLUMNS } from "../../../lib/columns";
@@ -61,17 +62,11 @@ export default function EventDetails() {
   const [newFee, setNewFee] = useState("");
 
   const [matchScores, setMatchScores] = useState({});
-  const [viewRound, setViewRound] = useState(1);
-  const [initializedRound, setInitializedRound] = useState(false);
+  const [pickedRound, setViewRound] = useState(null); // null = follow the current round
   const [showGuestPrompt, setShowGuestPrompt] = useState(false);
+  const [swapPick, setSwapPick] = useState(null); // doubles: first player tapped for a swap
+  const { confirm, notify, dialogs } = useDialogs();
 
-  // Jump to the current active round on initial load
-  useEffect(() => {
-    if (event?.bracket_data?.current_round && !initializedRound) {
-      setViewRound(event.bracket_data.current_round);
-      setInitializedRound(true);
-    }
-  }, [event, initializedRound]);
 
   if (isLoading) return <Loading />;
 
@@ -91,19 +86,6 @@ export default function EventDetails() {
 
   // --- SWR MUTATION WRAPPERS (Syncs Database to Cache Instantly) --- //
 
-  const handleClearBracket = async () => {
-    if (!confirm(t('events.alerts.warningReset'))) return;
-    setActionLoading(true);
-    const { error } = await supabase.from('events').update({ bracket_data: null, status: 'registration_closed' }).eq('id', id); 
-    if (error) alert(error.message);
-    else {
-      await mutate();
-      setViewRound(1);
-      setMatchScores({});
-    }
-    setActionLoading(false);
-  };
-
   const handleJoin = async () => {
     setActionLoading(true);
     const { data: existing } = await supabase.from('event_participants').select('id').eq('event_id', id).eq('user_id', currentUser.id).maybeSingle();
@@ -118,18 +100,18 @@ export default function EventDetails() {
     let joinStatus = currentUser.id === event.host_id ? 'approved' : (isFull ? 'waitlist' : 'pending');
 
     const { error } = await supabase.from('event_participants').insert([{ event_id: id, user_id: currentUser.id, status: joinStatus }]);
-    if (error && error.code !== '23505') alert(`Database Error: ${error.message}`);
+    if (error && error.code !== '23505') notify(`${t('alerts.somethingWrong')} ${error.message}`);
     
     await mutate();
     setActionLoading(false);
   };
 
   const handleLeaveEvent = async () => {
-    if (event?.bracket_data) return alert(t('events.alerts.bracketGeneratedWithdraw'));
-    if (!confirm(t('events.alerts.confirmWithdraw'))) return;
+    if (event?.bracket_data) return notify(t('events.alerts.bracketGeneratedWithdraw'));
+    if (!(await confirm({ title: t('events.buttons.withdraw'), body: t('events.alerts.confirmWithdraw'), action: t('events.buttons.withdraw'), cancel: t('logMatch.cancel'), danger: true }))) return;
     setActionLoading(true);
     const { error } = await supabase.from('event_participants').delete().eq('event_id', id).eq('user_id', currentUser.id);
-    if (error) alert(`Error: ${error.message}`);
+    if (error) notify(`${t('alerts.somethingWrong')} ${error.message}`);
     else await mutate();
     setActionLoading(false);
   };
@@ -167,241 +149,84 @@ export default function EventDetails() {
   };
 
   const handleUpdateEventStatus = async (newStatus) => {
-    if (newStatus === 'live' && !event.bracket_data) return alert(t('events.alerts.generateBeforeLive'));
-    if (newStatus === 'registration' && event.bracket_data) return alert(t('events.alerts.resetBeforeReg'));
-    
+    if (newStatus === 'live' && !event.bracket_data) return notify(t('events.alerts.generateBeforeLive'));
+    if (newStatus === 'registration' && event.bracket_data) return notify(t('events.alerts.resetBeforeReg'));
     setActionLoading(true);
     const { error } = await supabase.from('events').update({ status: newStatus }).eq('id', id);
-    if (!error) await mutate();
+    if (error) notify(`${t('alerts.somethingWrong')} ${error.message}`);
+    else await mutate();
     setActionLoading(false);
   };
 
-  const getSeedingArray = (size) => {
-    if (size === 2) return [1, 2];
-    let pls = [1, 2];
-    for (let i = 1; i < Math.log2(size); i++) {
-      let out = [];
-      let length = pls.length * 2 + 1;
-      pls.forEach(d => { out.push(d); out.push(length - d); });
-      pls = out;
+  // ---- tournament actions run on the server (host only); the page just refreshes afterwards ----
+  const runAction = async (body, okMessage) => {
+    setActionLoading(true);
+    try {
+      const data = await callServer({ eventId: id, ...body });
+      const fresh = await mutate();
+      if (data?.warning === 'score_updated_no_rating') notify(t('events.alerts.scoreUpdatedNoDupr'), 'ok');
+      else if (okMessage) notify(okMessage, 'ok');
+      return fresh;
+    } catch (err) {
+      notify(errorText(err, t));
+      return null;
+    } finally {
+      setActionLoading(false);
     }
-    return pls;
+  };
+
+  const handlePairTeams = () => runAction({ action: 'teams.pair' }, t('events.teams.paired'));
+
+  const handleSwapPick = async (userId) => {
+    if (!swapPick) return setSwapPick(userId);
+    if (swapPick === userId) return setSwapPick(null);
+    const a = swapPick;
+    setSwapPick(null);
+    await runAction({ action: 'teams.swap', a, b: userId });
   };
 
   const handleGenerateBracket = async () => {
-    if (event.status !== 'registration_closed') return alert(t('events.alerts.statusMustBeClosed'));
-    
-    const approved = participants.filter(p => p.status === 'approved');
-    if (approved.length < 2) return alert(t('events.alerts.notEnoughPlayers'));
-
-    setActionLoading(true);
-    
-    const seededPlayers = [...approved].sort((a, b) => (b.profiles?.rating || 0) - (a.profiles?.rating || 0))
-      .map(p => ({ user_id: p.user_id, name: p.profiles?.display_name, rating: p.profiles?.rating }));
-
-    const numPlayers = seededPlayers.length;
-    const bracketSize = Math.pow(2, Math.ceil(Math.log2(numPlayers || 1)));
-    const totalRounds = Math.log2(bracketSize) || 1;
-    const seedingOrder = getSeedingArray(bracketSize);
-    
-    const rounds = {};
-    let currentMatchCount = bracketSize / 2;
-    
-    for (let r = 1; r <= totalRounds; r++) {
-      rounds[r] = [];
-      for (let m = 0; m < currentMatchCount; m++) {
-        rounds[r].push({
-          match_id: `r${r}_m${m + 1}`, player1: null, player2: null, score1: 0, score2: 0, status: 'pending', winner_id: null, is_bye: false
-        });
-      }
-      currentMatchCount /= 2;
-    }
-    
-    for (let i = 0; i < bracketSize; i += 2) {
-      const s1 = seedingOrder[i];
-      const s2 = seedingOrder[i + 1];
-      
-      const p1 = s1 <= numPlayers ? seededPlayers[s1 - 1] : null;
-      const p2 = s2 <= numPlayers ? seededPlayers[s2 - 1] : null;
-      
-      const isBye = !p1 || !p2;
-      const winner = isBye ? (p1 || p2) : null;
-      
-      const mIdx = i / 2;
-      rounds[1][mIdx].player1 = p1;
-      rounds[1][mIdx].player2 = p2;
-      rounds[1][mIdx].is_bye = isBye;
-      rounds[1][mIdx].status = isBye ? 'completed' : 'pending';
-      rounds[1][mIdx].winner_id = winner ? winner.user_id : null;
-      
-      if (isBye && totalRounds > 1) {
-        const nextMatchIdx = Math.floor(mIdx / 2);
-        const isPlayer1 = mIdx % 2 === 0;
-        if (isPlayer1) rounds[2][nextMatchIdx].player1 = winner;
-        else rounds[2][nextMatchIdx].player2 = winner;
-      }
-    }
-
-    let current_round = 1;
-    const allR1Completed = rounds[1].every(m => m.status === 'completed');
-    if (allR1Completed && totalRounds > 1) current_round = 2; 
-
-    const bracketData = { rounds, current_round, champion: null };
-    
-    const { error } = await supabase.from('events').update({ bracket_data: bracketData, status: 'live' }).eq('id', id);
-    
-    if (error) {
-        alert(`Bracket Error: ${error.message}`);
-    } else {
-        const freshData = await mutate();
-        if (freshData?.event?.bracket_data?.current_round) setViewRound(freshData.event.bracket_data.current_round);
-    }
-    setActionLoading(false);
+    if (normalizeStatus(event.status) !== 'registration_closed') return notify(t('events.alerts.statusMustBeClosed'));
+    const fresh = await runAction({ action: 'bracket.generate' });
+    if (fresh?.event?.bracket_data?.current_round) setViewRound(fresh.event.bracket_data.current_round);
   };
 
   const handleSaveScore = async (matchId) => {
-    const localS1 = matchScores[matchId]?.s1;
-    const localS2 = matchScores[matchId]?.s2;
-
-    let updatedBracket = JSON.parse(JSON.stringify(event.bracket_data));
-    const currRound = updatedBracket.current_round;
-    const matchIndex = updatedBracket.rounds[currRound].findIndex(m => m.match_id === matchId);
-    if (matchIndex === -1) return;
-    
-    const match = updatedBracket.rounds[currRound][matchIndex];
-    
-    const rawS1 = localS1 !== undefined ? localS1 : match.score1;
-    const rawS2 = localS2 !== undefined ? localS2 : match.score2;
-
-    if (rawS1 === '' || rawS2 === '') return alert(t('events.alerts.enterBothScores'));
-
-    const s1 = parseInt(rawS1 || 0);
-    const s2 = parseInt(rawS2 || 0);
-    const maxScore = Math.max(s1, s2);
-    const diffScore = Math.abs(s1 - s2);
-    
-    if (s1 === s2) return alert(t('events.alerts.no_tie'));
-    if (s1 < 0 || s2 < 0) return alert(t('events.alerts.no_negative'));
-    if (s1 > 50 || s2 > 50) return alert(t('events.alerts.max_score'));
-    // Same rule as the rating engine: games to 11, 15 or 21, win by 2 (overtime ends at exactly +2).
-    const validGame = ([11, 15, 21].includes(maxScore) && diffScore >= 2) || (maxScore > 11 && diffScore === 2);
-    if (!validGame) return alert(t('alerts.invalidPickleballScore'));
-
-    setActionLoading(true);
-
-    const isFirstSave = match.status === 'pending';
-    
-    match.score1 = s1;
-    match.score2 = s2;
-    match.status = 'completed';
-    match.winner_id = s1 > s2 ? match.player1.user_id : match.player2.user_id;
-
-    if (isFirstSave) {
-        try {
-            const { data, error } = await supabase.functions.invoke('submit-match', {
-                body: {
-                  context: 'tournament',
-                  eventId: id,
-                  scoreA: s1,
-                  scoreB: s2,
-                  playerAId: match.player1.user_id,
-                  partnerId: null, 
-                  opp1Id: match.player2.user_id,
-                  opp2Id: null,
-                },
-            });
-
-            if (error) throw new Error(error.message);
-            if (data?.error) throw new Error(data.error);
-
-            if (data?.newRatingA) match.player1.rating = data.newRatingA;
-            if (data?.newRatingB) match.player2.rating = data.newRatingB;
-
-        } catch (err) {
-            console.error("DUPR Logging Error:", err);
-            alert("Warning: Match saved to bracket, but DUPR update failed: " + err.message);
-        }
-    } else {
-        alert(t('events.alerts.scoreUpdatedNoDupr'));
-    }
-
-    const { error } = await supabase.from('events').update({ bracket_data: updatedBracket }).eq('id', id);
-    if (error) alert(`Error: ${error.message}`);
-    else await mutate();
-    
-    setActionLoading(false);
-  };
-
-  const handleRollbackRound = async () => {
-    if (!event.bracket_data) return;
-    let updatedBracket = JSON.parse(JSON.stringify(event.bracket_data));
-    const currRound = updatedBracket.current_round;
-    
-    if (currRound <= 1) return alert(t('events.alerts.cannotRollback'));
-    if (!confirm(t('events.alerts.confirmRollback') + ` Round ${currRound - 1}?`)) return;
-    
-    setActionLoading(true);
-
-    updatedBracket.champion = null;
-    
-    updatedBracket.rounds[currRound].forEach(match => {
-        match.player1 = null;
-        match.player2 = null;
-        match.score1 = 0;
-        match.score2 = 0;
-        match.status = 'pending';
-        match.winner_id = null;
-    });
-
-    const previousRoundNum = currRound - 1;
-    updatedBracket.current_round = previousRoundNum;
-
-    const { error } = await supabase.from('events').update({ bracket_data: updatedBracket, status: 'live' }).eq('id', id);
-    
-    if (!error) {
-        await mutate();
-        setViewRound(previousRoundNum);
-    } else alert(`Error: ${error.message}`);
-    
-    setActionLoading(false);
+    const match = event.bracket_data.rounds[event.bracket_data.current_round].find((m) => m.match_id === matchId);
+    const s1 = matchScores[matchId]?.s1 ?? (match?.status === 'completed' ? String(match.score1) : '');
+    const s2 = matchScores[matchId]?.s2 ?? (match?.status === 'completed' ? String(match.score2) : '');
+    if (s1 === '' || s2 === '') return notify(t('events.alerts.enterBothScores'));
+    const fresh = await runAction({ action: 'bracket.score', matchId, s1: Number(s1), s2: Number(s2) });
+    if (fresh) setMatchScores((prev) => { const next = { ...prev }; delete next[matchId]; return next; });
   };
 
   const handleAdvanceRound = async () => {
-    setActionLoading(true);
-    let updatedBracket = JSON.parse(JSON.stringify(event.bracket_data));
-    const currRound = updatedBracket.current_round;
-    const totalRounds = Object.keys(updatedBracket.rounds).length;
+    const b = event.bracket_data;
+    const isFinal = b.current_round === Object.keys(b.rounds).length;
+    const ok = await confirm(isFinal
+      ? { title: t('events.bracket.finalizeTournament'), body: t('events.alerts.confirmCrownChampion'), action: t('events.bracket.crown'), cancel: t('logMatch.cancel') }
+      : { title: t('events.bracket.approveRound'), body: t('events.alerts.confirmLockRound'), action: t('events.bracket.lockRound'), cancel: t('logMatch.cancel') });
+    if (!ok) return;
+    const fresh = await runAction({ action: 'bracket.advance' });
+    if (fresh?.event?.bracket_data) setViewRound(fresh.event.bracket_data.current_round);
+  };
 
-    if (currRound === totalRounds) {
-        if (!confirm(t('events.alerts.confirmCrownChampion'))) { setActionLoading(false); return; }
-        const finalMatch = updatedBracket.rounds[currRound][0];
-        updatedBracket.champion = finalMatch.winner_id;
-        const { error } = await supabase.from('events').update({ status: 'completed', bracket_data: updatedBracket }).eq('id', id);
-        if (!error) await mutate();
-    } else {
-        if (!confirm(t('events.alerts.confirmLockRound'))) { setActionLoading(false); return; }
-        const nextRoundNum = currRound + 1;
-        const prevMatches = updatedBracket.rounds[currRound];
+  const handleRollbackRound = async () => {
+    const curr = event.bracket_data.current_round;
+    if (curr <= 1) return notify(t('events.alerts.cannotRollback'));
+    const ok = await confirm({ title: t('events.admin.rollback'), body: `${t('events.alerts.confirmRollback')} ${getRoundName(curr - 1, Object.keys(event.bracket_data.rounds).length)}?`, action: t('events.admin.rollback'), cancel: t('logMatch.cancel'), danger: true });
+    if (!ok) return;
+    const fresh = await runAction({ action: 'bracket.rollback' });
+    if (fresh?.event?.bracket_data) setViewRound(fresh.event.bracket_data.current_round);
+  };
 
-        for (let i = 0; i < prevMatches.length; i += 2) {
-          const m1 = prevMatches[i];
-          const m2 = prevMatches[i+1];
-          const p1 = m1.winner_id === m1.player1?.user_id ? m1.player1 : m1.player2;
-          const p2 = m2.winner_id === m2.player1?.user_id ? m2.player1 : m2.player2;
-
-          const nextMatchIdx = i / 2;
-          updatedBracket.rounds[nextRoundNum][nextMatchIdx].player1 = p1;
-          updatedBracket.rounds[nextRoundNum][nextMatchIdx].player2 = p2;
-        }
-
-        updatedBracket.current_round = nextRoundNum;
-        const { error } = await supabase.from('events').update({ bracket_data: updatedBracket }).eq('id', id);
-        if (!error) {
-            await mutate();
-            setViewRound(nextRoundNum);
-        }
+  const handleClearBracket = async () => {
+    const ok = await confirm({ title: t('events.admin.wipeReset'), body: t('events.alerts.warningReset'), action: t('events.admin.wipeReset'), cancel: t('logMatch.cancel'), danger: true });
+    if (!ok) return;
+    if (await runAction({ action: 'bracket.reset' })) {
+      setViewRound(1);
+      setMatchScores({});
     }
-    setActionLoading(false);
   };
 
   const updateLocalScore = (matchId, playerNum, val) => {
@@ -438,6 +263,19 @@ export default function EventDetails() {
   const isBracketVisibleToUser = isEventAdmin || status === 'live' || status === 'completed';
   const visibleRounds = event?.bracket_data ? Object.keys(event.bracket_data.rounds).filter(r => Number(r) <= event.bracket_data.current_round) : [];
   const loc = locale(language);
+  const viewRound = pickedRound ?? event?.bracket_data?.current_round ?? 1;
+  const doublesEvent = isDoublesEvent(event);
+  const teams = event?.teams || [];
+  const approvedIds = approvedParticipants.map((p) => p.user_id).sort();
+  const teamIds = teams.flatMap((tm) => tm.players.map((x) => x.user_id)).sort();
+  const teamsReady = !doublesEvent || (teams.length > 0 && JSON.stringify(approvedIds) === JSON.stringify(teamIds));
+  // bracket entries are players (singles) or teams (doubles); older brackets used user_id/email
+  const entryKey = (e) => (e ? e.id ?? e.user_id ?? null : null);
+  const entryName = (e) => e?.name ?? e?.email;
+  const isMine = (e) => !!currentUser && (e?.players ? e.players.some((x) => x.user_id === currentUser.id) : e?.user_id === currentUser.id);
+  const championEntry = event?.bracket_data?.champion
+    ? Object.values(event.bracket_data.rounds).flat().flatMap((m) => [m.player1, m.player2]).find((e) => entryKey(e) === event.bracket_data.champion)
+    : null;
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString(loc, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
   const ParticipantRow = ({ p, idx, viewType }) => {
@@ -548,7 +386,7 @@ export default function EventDetails() {
       <div className="mt-6 -mx-4 px-4 overflow-x-auto no-scrollbar">
         <div className="seg min-w-max md:min-w-0" role="tablist">
           {tabs.map((tab) => (
-            <button key={tab.id} role="tab" aria-selected={activeTab === tab.id} aria-pressed={activeTab === tab.id} onClick={() => setActiveTab(tab.id)} className="px-4 whitespace-nowrap">
+            <button key={tab.id} role="tab" aria-selected={activeTab === tab.id} onClick={() => setActiveTab(tab.id)} className="px-4 whitespace-nowrap">
               {tab.label}
             </button>
           ))}
@@ -564,6 +402,19 @@ export default function EventDetails() {
             </p>
             {event.event_type === 'tournament' && <p className="text-[0.9375rem] faint mt-3 max-w-[65ch]">{t('events.details.tournamentWeight')}</p>}
           </section>
+        )}
+
+        {activeTab === 'participants' && doublesEvent && teams.length > 0 && (
+          <ol className="grid gap-2 sm:grid-cols-2 mb-4">
+            {teams.map((team, i) => (
+              <li key={team.id} className="panel px-4 py-3 flex items-center gap-3">
+                <span className="num w-7 text-center faint">{i + 1}</span>
+                <div className="flex -space-x-2">{team.players.map((pl) => <Avatar key={pl.user_id} name={pl.name} size={32} you={pl.user_id === currentUser?.id} />)}</div>
+                <span className="flex-1 truncate font-semibold">{team.name}</span>
+                <span className="num">{Number(team.rating).toFixed(3)}</span>
+              </li>
+            ))}
+          </ol>
         )}
 
         {activeTab === 'participants' && (
@@ -583,7 +434,7 @@ export default function EventDetails() {
                   <div>
                     <p className="text-[0.9375rem]">{t('events.bracket.champion')}</p>
                     <p className="num text-[1.75rem] leading-tight">
-                      {displayName(approvedParticipants.find(p => p.user_id === event.bracket_data.champion)?.profiles?.display_name, t('common.guest'))}
+                      {displayName(entryName(championEntry), t('common.guest'))}
                     </p>
                   </div>
                 </section>
@@ -603,12 +454,12 @@ export default function EventDetails() {
                   const s1 = matchScores[match.match_id]?.s1 ?? (match.status === 'completed' ? String(match.score1) : '');
                   const s2 = matchScores[match.match_id]?.s2 ?? (match.status === 'completed' ? String(match.score2) : '');
                   const row = (player, score, fallback) => {
-                    const won = match.winner_id && match.winner_id === player?.user_id;
+                    const won = match.winner_id && match.winner_id === entryKey(player);
                     return (
                       <div className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl ${won ? 'bg-win-tint' : ''}`}>
                         <div className="flex items-center gap-3 min-w-0">
-                          <Avatar name={player?.name ?? player?.email} size={32} you={player?.user_id === currentUser?.id} />
-                          <span className={`truncate ${won ? 'font-bold' : 'font-medium'} ${player ? '' : 'faint'}`}>{(player?.name ?? player?.email) ? displayName(player.name ?? player.email) : fallback}</span>
+                          <Avatar name={entryName(player)} size={32} you={isMine(player)} />
+                          <span className={`truncate ${won ? 'font-bold' : 'font-medium'} ${player ? '' : 'faint'}`}>{entryName(player) ? (player?.players ? entryName(player) : displayName(entryName(player))) : fallback}</span>
                         </div>
                         <span className="num text-lg">{match.is_bye || match.status !== 'completed' ? '–' : score}</span>
                       </div>
@@ -666,8 +517,13 @@ export default function EventDetails() {
                     <li className={`flex items-center gap-2 ${approvedParticipants.length >= 2 ? 'text-win' : 'muted'}`}>
                       {approvedParticipants.length >= 2 ? <Check size={18} /> : <X size={18} />} {t('events.admin.requiresPlayers')} ({approvedParticipants.length})
                     </li>
+                    {doublesEvent && (
+                      <li className={`flex items-center gap-2 ${teamsReady ? 'text-win' : 'muted'}`}>
+                        {teamsReady ? <Check size={18} /> : <X size={18} />} {t('events.teams.ready')}
+                      </li>
+                    )}
                   </ul>
-                  <button onClick={handleGenerateBracket} disabled={actionLoading || status !== 'registration_closed' || approvedParticipants.length < 2} className="btn btn-primary w-full">
+                  <button onClick={handleGenerateBracket} disabled={actionLoading || status !== 'registration_closed' || approvedParticipants.length < 2 || !teamsReady} className="btn btn-primary w-full">
                     {actionLoading ? t('events.buttons.processing') : t('events.admin.generateBracket')}
                   </button>
                 </>
@@ -684,6 +540,44 @@ export default function EventDetails() {
                 </>
               )}
             </section>
+
+            {doublesEvent && !event.bracket_data && (
+              <section className="panel p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="heading">{t('events.teams.title')}</h2>
+                    <p className="muted text-[0.9375rem] mt-1">{t('events.teams.desc')}</p>
+                  </div>
+                  <button onClick={handlePairTeams} disabled={actionLoading || approvedParticipants.length < 4} className="btn btn-primary btn-sm shrink-0">
+                    {teams.length ? t('events.teams.repair') : t('events.teams.pair')}
+                  </button>
+                </div>
+                {teams.length > 0 && !teamsReady && <p className="text-loss text-[0.9375rem] mt-3">{t('events.teams.stale')}</p>}
+                {teams.length > 0 && (
+                  <>
+                    <p className="text-[0.8125rem] faint mt-4 mb-2">{swapPick ? t('events.teams.swapSecond') : t('events.teams.swapHint')}</p>
+                    <ol className="grid gap-2 sm:grid-cols-2">
+                      {teams.map((team, i) => (
+                        <li key={team.id} className="rounded-xl border border-line p-2">
+                          <div className="flex items-center justify-between px-1 mb-1">
+                            <span className="text-[0.8125rem] faint">{t('events.teams.team')} {i + 1}</span>
+                            <span className="num text-sm">{Number(team.rating).toFixed(3)}</span>
+                          </div>
+                          {team.players.map((pl) => (
+                            <button key={pl.user_id} onClick={() => handleSwapPick(pl.user_id)} disabled={actionLoading} aria-pressed={swapPick === pl.user_id}
+                              className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg text-left ${swapPick === pl.user_id ? 'bg-volt text-volt-ink' : 'hover:bg-court-tint'}`}>
+                              <Avatar name={pl.name} size={28} you={pl.user_id === currentUser?.id} />
+                              <span className="flex-1 truncate font-medium">{pl.name}</span>
+                              <span className="num text-sm">{Number(pl.rating).toFixed(2)}</span>
+                            </button>
+                          ))}
+                        </li>
+                      ))}
+                    </ol>
+                  </>
+                )}
+              </section>
+            )}
 
             <section className="panel p-5 grid gap-4 sm:grid-cols-3">
               <div className="flex flex-col gap-1.5">
@@ -736,6 +630,8 @@ export default function EventDetails() {
           </div>
         )}
       </div>
+
+      {dialogs}
 
       <Sheet open={showGuestPrompt} onClose={() => setShowGuestPrompt(false)} title={t('guest.title')}>
         <p className="muted mb-5">{t('guest.eventsBody')}</p>

@@ -36,7 +36,9 @@ export default function Friends() {
     setLoading(false);
   };
 
-  useEffect(() => { loadFriends(); }, []);
+  useEffect(() => {
+    (async () => { await loadFriends(); })();
+  }, []);
 
   const addFriend = async (e) => {
     e.preventDefault();

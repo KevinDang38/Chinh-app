@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check, UserPlus, ChevronRight } from "lucide-react";
 import { supabase } from "../../../lib/supabaseClient";
 import { useLanguage } from "../../../context/LanguageContext";
-import { Page, Loading, CourtRating, Segmented, ResultTag, Change, Empty, Avatar, displayName } from "../../../components/ui";
+import { Page, Loading, CourtRating, Segmented, ResultTag, Change, Empty, Avatar, displayName, useDialogs } from "../../../components/ui";
 import { summarize } from "../../../lib/matchHistory";
 import { PROFILE_COLUMNS, MATCH_COLUMNS } from "../../../lib/columns";
 
@@ -13,6 +13,7 @@ export default function UserProfile() {
   const { id } = useParams();
   const router = useRouter();
   const { t, language } = useLanguage();
+  const { notify, dialogs } = useDialogs();
 
   const [currentUser, setCurrentUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -57,7 +58,7 @@ export default function UserProfile() {
   const handleAddFriend = async () => {
     if (!currentUser) return router.push("/login");
     const { error } = await supabase.from("friends").insert([{ user_id: currentUser.id, friend_id: profile.id }]);
-    if (error) alert(error.message);
+    if (error) notify(t("friends.addFailed"));
     else setIsFriend(true);
   };
 
@@ -139,6 +140,7 @@ export default function UserProfile() {
           )}
         </section>
       </div>
+      {dialogs}
     </Page>
   );
 }

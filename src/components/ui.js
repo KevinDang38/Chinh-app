@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Minus, Plus, X } from "lucide-react";
 
 // ---------- names & avatars ----------
@@ -181,4 +181,46 @@ export function Sheet({ open, onClose, title, children }) {
       </div>
     </div>
   );
+}
+
+// ---------- in-app dialogs (replace window.alert / window.confirm) ----------
+/**
+ * const { confirm, notify, dialogs } = useDialogs();
+ * if (await confirm({ title, body, action, danger })) ...;  notify(message, "error" | "ok");
+ * Render {dialogs} once in the page.
+ */
+export function useDialogs() {
+  const [ask, setAsk] = useState(null);     // { title, body, action, danger, resolve }
+  const [toast, setToast] = useState(null); // { message, tone }
+
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(id);
+  }, [toast]);
+
+  const confirm = useCallback((opts) => new Promise((resolve) => setAsk({ ...opts, resolve })), []);
+  const notify = useCallback((message, tone = "error") => setToast({ message, tone, key: Date.now() }), []);
+  const answer = (v) => { ask?.resolve(v); setAsk(null); };
+
+  const dialogs = (
+    <>
+      <Sheet open={!!ask} onClose={() => answer(false)} title={ask?.title || ""}>
+        {ask?.body && <p className="muted mb-5">{ask.body}</p>}
+        <button onClick={() => answer(true)} className={`btn w-full ${ask?.danger ? "btn-danger" : "btn-primary"}`}>{ask?.action}</button>
+        <button onClick={() => answer(false)} className="btn btn-quiet w-full mt-2">{ask?.cancel || "Cancel"}</button>
+      </Sheet>
+      {toast && (
+        <div key={toast.key} role="status" aria-live="polite"
+          className="fixed z-[60] left-4 right-4 md:left-auto md:right-6 md:w-96 top-[calc(4rem+env(safe-area-inset-top))] md:top-6 sheet-in">
+          <div className={`panel px-4 py-3 shadow-lg flex items-start gap-3 ${toast.tone === "ok" ? "!border-win" : "!border-loss"}`}>
+            <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${toast.tone === "ok" ? "bg-win" : "bg-loss"}`} />
+            <p className="text-[0.9375rem] flex-1">{toast.message}</p>
+            <button onClick={() => setToast(null)} aria-label="Close" className="faint -mr-1"><X size={18} /></button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+  return { confirm, notify, dialogs };
 }

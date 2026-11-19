@@ -10,16 +10,12 @@
   },
   "dependencies": {
     "@fontsource-variable/archivo": "^5.3.0",
-    "@g-loot/react-tournament-brackets": "^1.0.31-rc",
     "@supabase/supabase-js": "^2.107.0",
-    "framer-motion": "^12.40.0",
     "lucide-react": "^1.17.0",
     "next": "16.2.7",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "react-svg-pan-zoom": "^3.13.1",
     "recharts": "^3.8.1",
-    "styled-components": "^6.4.2",
     "swr": "^2.4.1"
   },
   "devDependencies": {

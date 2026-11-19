@@ -203,7 +203,9 @@
       "semifinals": "Bán Kết",
       "quarterfinals": "Tứ Kết",
       "roundOf": "Vòng",
-      "final": "Xong"
+      "final": "Xong",
+      "crown": "Trao ngôi vô địch",
+      "lockRound": "Chốt vòng"
     },
     "admin": {
       "tournamentEngine": "Hệ Thống Giải Đấu",
@@ -281,6 +283,18 @@
       "confirmLockRound": "Khóa điểm số Vòng này và tạo các trận đấu tiếp theo?",
       "bracketExists": "Nhánh Đấu Đã Tạo",
       "cannotModifyRoster": "Không thể sửa danh sách người tham gia khi nhánh đấu đang diễn ra"
+    },
+    "teams": {
+      "title": "Đội",
+      "desc": "Người chơi được ghép mạnh với yếu để các đội cân bằng. Chạm hai người chơi để đổi chỗ.",
+      "pair": "Ghép đội",
+      "repair": "Ghép lại",
+      "paired": "Đã ghép đội.",
+      "stale": "Danh sách đã thay đổi sau khi ghép. Hãy ghép đội lại.",
+      "swapHint": "Chạm một người chơi, rồi chạm người khác để đổi chỗ.",
+      "swapSecond": "Giờ chạm người chơi muốn đổi chỗ.",
+      "team": "Đội",
+      "ready": "Đã ghép đội cho danh sách hiện tại"
     }
   },
   "alerts": {
@@ -292,7 +306,11 @@
     "invalidPickleballScore": "Điểm số không hợp lệ!\n\nPickleball được đánh chạm 11, 15, hoặc 21 điểm, và bạn phải thắng cách biệt 2 điểm.\n\nNếu trận đấu kéo dài thêm, bạn phải thắng cách biệt CHÍNH XÁC 2 điểm (ví dụ: 12-10, 16-14).",
     "successNewRating": "Thành công! Điểm DUPR mới: ",
     "submitFailed": "Không lưu được trận đấu:",
-    "slotTaken": "Chỗ này vừa có người. Chọn chỗ khác nhé."
+    "slotTaken": "Chỗ này vừa có người. Chọn chỗ khác nhé.",
+    "cooldown": "Bạn vừa ghi một trận. Bạn có thể ghi trận tiếp theo sau {n} phút.",
+    "lobbyFailed": "Không mở được phòng. Thử lại nhé.",
+    "notAllowed": "Bạn không có quyền làm việc này.",
+    "somethingWrong": "Đã có lỗi:"
   },
   "auth": {
     "welcomeBack": "Chào mừng trở lại",
