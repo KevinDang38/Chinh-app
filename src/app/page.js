@@ -315,7 +315,7 @@ export default function Home() {
         {/* ---------------- manual ---------------- */}
         {viewMode === "manual" && (
           <div className="flex flex-col gap-3">
-            <div className="w-44">
+            <div className="w-48 mx-auto">
               <Segmented label="Format" value={matchType} onChange={handleMatchTypeToggle}
                 options={[{ value: "1v1", label: t("common.singles") }, { value: "2v2", label: t("common.doubles") }]} />
             </div>
@@ -352,7 +352,7 @@ export default function Home() {
           <section className="panel p-5">
             <h2 className="heading">{t("logMatch.startLive")}</h2>
             <p className="muted mt-1 mb-5">{t("logMatch.hostDesc")}</p>
-            <div className="w-44 mb-5">
+            <div className="w-48 mx-auto mb-5">
               <Segmented label="Format" value={matchType} onChange={handleMatchTypeToggle}
                 options={[{ value: "1v1", label: t("common.singles") }, { value: "2v2", label: t("common.doubles") }]} />
             </div>

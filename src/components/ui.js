@@ -42,7 +42,7 @@ export function Page({ children, wide = false }) {
 
 export function Loading({ text }) {
   return (
-    <div className="min-h-[60dvh] flex flex-col items-center justify-center gap-3 muted">
+    <div className="min-h-[60dvh] flex flex-col items-center justify-center gap-3 muted loader-delay" role="status">
       <span className="spinner" />
       {text && <span className="text-sm">{text}</span>}
     </div>

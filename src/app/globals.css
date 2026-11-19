@@ -76,7 +76,10 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  /* calm decorative motion, but keep loading spinners turning slowly (shortening an
+     infinite animation to 0.01ms makes it flicker instead of stopping) */
+  *:not(.spinner), *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  .spinner { animation-duration: 2s !important; }
 }
 
 @layer components {
@@ -170,8 +173,11 @@ body {
   .spinner {
     width: 22px; height: 22px; border-radius: 999px;
     border: 3px solid var(--color-court-tint); border-top-color: var(--color-court);
-    animation: spin .8s linear infinite;
+    animation: spin 1.1s linear infinite;
   }
+  /* page-level loader: only appears if loading takes longer than a moment */
+  .loader-delay { animation: loader-in .2s ease-out .35s both; }
+  @keyframes loader-in { from { opacity: 0; } }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* the one motion that answers an action: a sheet rising from the bottom */
