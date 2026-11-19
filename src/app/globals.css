@@ -1,48 +1,188 @@
 @import "tailwindcss";
+@import "@fontsource-variable/archivo/wdth.css";
 
-:root {
-  /* Premium Deep Off-Black Theme */
-  --bg-base: #050507;
-  --bg-surface: #0a0a0c;
-  --bg-surface-elevated: #121215;
-  
-  --border-subtle: rgba(255, 255, 255, 0.05);
-  --border-strong: rgba(255, 255, 255, 0.1);
-  
-  --accent-orange: #ea580c;
-  --accent-orange-glow: rgba(234, 88, 12, 0.2);
+/*
+  Chình — "court" design system
+  Light, high-contrast court colours so it reads in sunlight at the court.
+  Colour carries meaning only: court blue = action, volt (ball yellow) = you / active,
+  kitchen green = win, fault red = loss or destructive.
+  One typeface (Archivo). Numbers use the wide cut so ratings and scores lead.
+*/
+
+@theme {
+  --color-paper: #f5f7f3;     /* court-line white, cool not cream */
+  --color-surface: #ffffff;
+  --color-ink: #132238;       /* deep navy text */
+  --color-ink-2: #4a5a6e;     /* secondary text */
+  --color-ink-3: #7c8a9b;     /* tertiary text */
+  --color-line: #dbe2e8;      /* hairlines and borders */
+  --color-court: #1f5f8b;     /* court blue: primary actions */
+  --color-court-deep: #174a6d;
+  --color-court-tint: #e6eff6;
+  --color-court-text: #174a6d; /* blue text on tinted chips */
+  --color-volt: #d7f03b;      /* ball yellow: you / active */
+  --color-volt-ink: #3d4a00;
+  --color-win: #2e7d5b;       /* kitchen green */
+  --color-win-tint: #e3f2ea;
+  --color-loss: #c4452f;      /* fault red */
+  --color-loss-tint: #fbe9e5;
+  --color-on-win: #ffffff;    /* text on a solid green button */
+
+  --font-sans: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+html { -webkit-text-size-adjust: 100%; color-scheme: light; }
+
+/*
+  Dark mode: the court under floodlights. Background is deep court navy (not black),
+  surfaces lift toward court blue, and the ball-yellow stays the one bright thing.
+  Set by data-theme on <html> (system preference until the user picks).
+*/
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: #0d1828;
+  --color-surface: #15233a;
+  --color-ink: #e9eef5;
+  --color-ink-2: #aab8c9;
+  --color-ink-3: #7d8da3;
+  --color-line: #263a55;
+  --color-court: #2f78ad;
+  --color-court-deep: #286896;
+  --color-court-tint: #1b2f4a;
+  --color-court-text: #9ccbec;
+  --color-volt: #d7f03b;
+  --color-volt-ink: #2b3500;
+  --color-win: #5cc496;
+  --color-win-tint: #17392d;
+  --color-loss: #f0806a;
+  --color-loss-tint: #3e211c;
+  --color-on-win: #0b2418;
 }
 
 body {
-  background-color: var(--bg-base);
-  color: #ffffff;
-  /* Prevent overscroll bounce on mobile to feel more native */
-  overscroll-behavior-y: none; 
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-@layer utilities {
-  /* Custom Glassmorphism Classes */
-  .glass-panel {
-    background: rgba(18, 18, 21, 0.6);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--border-subtle);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
-  }
+:focus-visible {
+  outline: 3px solid var(--color-court);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
 
-  .glass-card {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid var(--border-strong);
-  }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
 
-  /* Custom Scrollbar for the horizontal avatar lists */
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
+@layer components {
+  /* ---- type ---- */
+  .num {
+    font-stretch: 125%;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
   }
-  .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  .title {
+    font-stretch: 112%;
+    font-weight: 750;
+    font-size: 1.625rem;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
   }
+  .heading {
+    font-stretch: 108%;
+    font-weight: 700;
+    font-size: 1.125rem;
+    line-height: 1.3;
+  }
+  .label { font-size: 0.875rem; font-weight: 600; color: var(--color-ink-2); }
+  .muted { color: var(--color-ink-2); }
+  .faint { color: var(--color-ink-3); }
+
+  /* ---- surfaces ---- */
+  .panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 18px;
+  }
+  .rows > * + * { border-top: 1px solid var(--color-line); }
+
+  /* ---- buttons: 48px tap targets ---- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+    min-height: 48px; padding: 0 1.25rem; border-radius: 14px;
+    font-weight: 650; font-size: 1rem;
+    transition: background-color .15s, transform .1s, opacity .15s;
+  }
+  .btn:active:not(:disabled) { transform: scale(0.98); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: var(--color-court); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--color-court-deep); }
+  .btn-quiet { background: transparent; color: var(--color-ink-2); }
+  .btn-quiet:hover:not(:disabled) { background: var(--color-court-tint); color: var(--color-ink); }
+  .btn-outline { background: var(--color-surface); color: var(--color-ink); border: 1px solid var(--color-line); }
+  .btn-outline:hover:not(:disabled) { border-color: var(--color-ink-3); }
+  .btn-danger { background: var(--color-loss-tint); color: var(--color-loss); }
+  .btn-win { background: var(--color-win); color: var(--color-on-win); }
+  .btn-sm { min-height: 40px; padding: 0 0.875rem; font-size: 0.875rem; border-radius: 12px; }
+
+  /* ---- segmented control ---- */
+  .seg {
+    display: flex; padding: 4px; gap: 4px; border-radius: 14px;
+    background: var(--color-court-tint);
+  }
+  .seg > button {
+    flex: 1; min-height: 40px; border-radius: 10px;
+    font-weight: 600; font-size: 0.9375rem; color: var(--color-ink-2);
+    transition: background-color .15s, color .15s;
+  }
+  .seg > button[aria-pressed="true"] { background: var(--color-surface); color: var(--color-ink); box-shadow: 0 1px 2px rgb(19 34 56 / .12); }
+
+  /* ---- form fields ---- */
+  .field {
+    width: 100%; min-height: 48px; padding: 0 0.875rem; border-radius: 12px;
+    background: var(--color-surface); border: 1px solid var(--color-line);
+    font-size: 1rem; color: var(--color-ink);
+  }
+  .field::placeholder { color: var(--color-ink-3); }
+  .field:focus { outline: none; border-color: var(--color-court); box-shadow: 0 0 0 3px var(--color-court-tint); }
+
+  /* ---- chips ---- */
+  .chip {
+    min-height: 40px; padding: 0 0.875rem; border-radius: 999px;
+    border: 1px solid var(--color-line); background: var(--color-surface);
+    font-size: 0.9375rem; font-weight: 550; color: var(--color-ink-2);
+  }
+  .chip[aria-pressed="true"] { background: var(--color-ink); border-color: var(--color-ink); color: var(--color-paper); }
+
+  /* ---- result tags ---- */
+  .tag { display: inline-flex; align-items: center; gap: .25rem; padding: .125rem .5rem; border-radius: 8px; font-size: .8125rem; font-weight: 650; }
+  .tag-win { background: var(--color-win-tint); color: var(--color-win); }
+  .tag-loss { background: var(--color-loss-tint); color: var(--color-loss); }
+  .tag-neutral { background: var(--color-court-tint); color: var(--color-court-text); }
+  .tag-volt { background: var(--color-volt); color: var(--color-volt-ink); }
+
+  .spinner {
+    width: 22px; height: 22px; border-radius: 999px;
+    border: 3px solid var(--color-court-tint); border-top-color: var(--color-court);
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* the one motion that answers an action: a sheet rising from the bottom */
+  .sheet-in { animation: sheet-in .22s cubic-bezier(.2,.8,.2,1); }
+  @keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } }
+
+  /* charts follow the theme */
+  .recharts-cartesian-grid line { stroke: var(--color-line); }
+  .recharts-cartesian-axis-tick-value { fill: var(--color-ink-3); }
+  .recharts-area-curve { stroke: var(--color-court); }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { scrollbar-width: none; }
 }

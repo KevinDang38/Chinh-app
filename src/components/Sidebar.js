@@ -2,226 +2,117 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { PenLine, CalendarDays, Users, UserRound, PlusCircle, LogOut, Languages, Moon, Sun } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useLanguage } from "../context/LanguageContext";
+import { useTheme } from "../lib/theme";
 
-export default function Sidebar({ isOpen, setIsOpen }) {
+// Mobile: slim top bar + bottom tab bar. Desktop (md+): left rail.
+export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  
-  const [user, setUser] = useState(null);
-  const [userProfile, setUserProfile] = useState({ role: "player", hash: "" });
-
-  const [localIsOpen, setLocalIsOpen] = useState(false);
-  const isMobileOpen = isOpen !== undefined ? isOpen : localIsOpen;
-  const setMobileOpen = setIsOpen !== undefined ? setIsOpen : setLocalIsOpen;
-
   const { t, language, toggleLanguage } = useLanguage();
+  const { theme, toggleTheme } = useTheme();
+  const [user, setUser] = useState(null);
+  const [role, setRole] = useState("player");
 
   useEffect(() => {
-    const checkUser = async () => {
+    const load = async () => {
       const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
       if (session) {
-        setUser(session.user);
-        const { data: profile } = await supabase.from('profiles').select('role, profile_hash').eq('id', session.user.id).single();
-        if (profile) setUserProfile({ role: profile.role, hash: profile.profile_hash });
-      } else {
-        setUser(null);
+        const { data } = await supabase.from("profiles").select("role").eq("id", session.user.id).single();
+        setRole(data?.role ?? "player");
       }
     };
-    checkUser();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => checkUser());
-    return () => authListener?.subscription?.unsubscribe();
+    load();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => load());
+    return () => sub?.subscription?.unsubscribe();
   }, []);
-
-  useEffect(() => setMobileOpen(false), [pathname, setMobileOpen]);
-
-  useEffect(() => {
-    if (isMobileOpen) {
-      document.body.style.overflow = 'hidden';
-      document.body.style.touchAction = 'none'; 
-    } else {
-      document.body.style.overflow = '';
-      document.body.style.touchAction = '';
-    }
-    
-    return () => {
-      document.body.style.overflow = '';
-      document.body.style.touchAction = '';
-    };
-  }, [isMobileOpen]);
 
   if (pathname === "/login" || pathname === "/update-password") return null;
 
-  const handleSignOut = async () => {
+  const items = [
+    { label: t("sidebar.logMatch"), href: "/", icon: PenLine, match: (p) => p === "/" },
+    { label: t("sidebar.events"), href: "/events", icon: CalendarDays, match: (p) => p.startsWith("/events") && p !== "/events/create" },
+    { label: t("sidebar.friends"), href: "/friends", icon: Users, match: (p) => p.startsWith("/friends") || p.startsWith("/profile") },
+    { label: user ? t("nav.me") : t("auth.signIn"), href: user ? "/dashboard" : "/login", icon: UserRound, match: (p) => p.startsWith("/dashboard") },
+  ];
+
+  const signOut = async () => {
     await supabase.auth.signOut();
-    setMobileOpen(false);
     router.push("/");
   };
 
-  // BASE MENU: Visible to everyone, including guests exploring the app
-  const navItems = [
-    { name: t('sidebar.logMatch'), path: '/' },
-    { name: t('sidebar.events'), path: '/events' },
-  ];
-
-  // LOGGED IN MENU: Dynamic insertion of restricted pages
-  if (user) {
-    navItems.unshift({ name: t('sidebar.dashboard'), path: '/dashboard' });
-    navItems.splice(2, 0, { name: t('sidebar.friends'), path: '/friends' });
-  }
-
-  // ADMIN MENU: Host privileges
-  if (userProfile.role === "admin") {
-    navItems.push({ name: t('sidebar.hostEvent'), path: '/events/create' });
-  }
+  const langLabel = language === "en" ? "Tiếng Việt" : "English";
+  const themeLabel = theme === "dark" ? t("nav.lightMode") : t("nav.darkMode");
+  const ThemeIcon = theme === "dark" ? Sun : Moon;
 
   return (
     <>
-      {/* 📱 MOBILE: Top Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#050507]/90 backdrop-blur-xl border-b border-white/5 z-40 flex items-center justify-between px-5">
-        <Link href={user ? "/dashboard" : "/"} className="text-xl font-black text-white tracking-tighter">
-          Chình
-        </Link>
-
-        <button 
-          onClick={() => setMobileOpen(!isMobileOpen)}
-          className="w-10 h-10 flex flex-col justify-center items-end gap-1.5 focus:outline-none rounded-full bg-white/5 px-2.5 active:scale-95 transition-all border border-white/5"
-        >
-          <span className={`block h-0.5 bg-white transition-all duration-300 ${isMobileOpen ? 'w-5 rotate-45 translate-y-2' : 'w-5'}`}></span>
-          <span className={`block h-0.5 bg-white transition-all duration-300 ${isMobileOpen ? 'w-0 opacity-0' : 'w-4'}`}></span>
-          <span className={`block h-0.5 bg-white transition-all duration-300 ${isMobileOpen ? 'w-5 -rotate-45 -translate-y-2' : 'w-5'}`}></span>
-        </button>
-      </div>
-
-      {/* 📱 MOBILE: Sleek Slide-In Drawer */}
-      {isMobileOpen && (
-        <div className="md:hidden">
-          <div 
-            className="fixed top-0 left-0 w-full h-dvh z-100 bg-black/60 backdrop-blur-md animate-in fade-in duration-300 touch-none"
-            onClick={() => setMobileOpen(false)}
-          ></div>
-          
-          <div className="fixed top-0 right-0 w-70 h-dvh bg-[#0a0a0c] z-101 flex flex-col shadow-2xl border-l border-white/5 animate-in slide-in-from-right duration-300">
-            
-            <div className="flex-1 overflow-y-auto pb-4">
-              <div className="p-6 border-b border-white/5 mb-2 bg-white/2">
-                {user ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 shrink-0 rounded-full bg-orange-500/20 border border-orange-500/50 flex items-center justify-center text-orange-400 font-black text-sm shadow-[0_0_10px_rgba(234,88,12,0.2)]">
-                      {user.email ? user.email.substring(0, 2).toUpperCase() : 'ME'}
-                    </div>
-                    <div className="flex flex-col overflow-hidden">
-                      <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Account</span>
-                      <span className="text-white font-bold text-sm truncate">{user.email}</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    <h2 className="text-2xl font-black text-white tracking-tighter">Chình</h2>
-                    <p className="text-xs text-zinc-500 font-medium leading-tight">Explore the app, or sign in to track your rating.</p>
-                    <Link href="/login" onClick={() => setMobileOpen(false)} className="mt-2 w-full py-2.5 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-lg text-center border border-white/5 transition-colors">
-                      Sign In / Sign Up
-                    </Link>
-                  </div>
-                )}
-              </div>
-
-              <nav className="px-3 space-y-1 mt-2">
-                {navItems.map((item) => {
-                  const isActive = pathname === item.path;
-                  return (
-                    <Link
-                      key={item.path}
-                      href={item.path}
-                      className={`block w-full px-5 py-4 text-sm font-bold rounded-2xl transition-all ${
-                        isActive 
-                          ? "text-orange-400 bg-orange-500/10 border border-orange-500/20 shadow-inner" 
-                          : "text-zinc-400 active:bg-white/5 active:text-white"
-                      }`}
-                    >
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </nav>
-            </div>
-
-            <div className="p-3 border-t border-white/5 space-y-1 bg-[#0a0a0c] shrink-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              <button 
-                onClick={toggleLanguage}
-                className="w-full flex justify-between items-center px-5 py-4 text-sm font-bold text-zinc-500 rounded-2xl active:bg-white/5 transition-colors"
-              >
-                <span>{t('sidebar.language')}</span>
-                <span className="text-orange-500 uppercase">{language || 'EN'}</span>
-              </button>
-              {user && (
-                <button 
-                  onClick={handleSignOut} 
-                  className="w-full text-left px-5 py-4 text-sm font-bold text-red-500/80 active:text-red-500 rounded-2xl active:bg-red-500/10 transition-colors"
-                >
-                  {t('sidebar.signOut')}
-                </button>
-              )}
-            </div>
-            
-          </div>
-        </div>
-      )}
-
-      {/* 💻 DESKTOP: Sidebar */}
-      <aside className="hidden md:flex flex-col justify-between w-64 h-screen sticky top-0 bg-[#0a0a0c]/80 backdrop-blur-3xl border-r border-white/5 shrink-0 overflow-hidden z-50">
-        <div className="absolute top-0 left-0 w-full h-32 bg-linear-to-b from-white/2 to-transparent pointer-events-none"></div>
-
-        <div className="pt-10 relative z-10 flex-1 flex flex-col">
-          <div className="px-8 mb-10">
-            <Link href={user ? "/dashboard" : "/"} className="text-3xl font-black text-white tracking-tighter hover:text-zinc-300 transition-colors drop-shadow-md">
-              Chình
-            </Link>
-          </div>
-
-          <nav className="space-y-1.5 px-3 flex-1">
-            {navItems.map((item) => {
-              const isActive = pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  href={item.path}
-                  className={`relative flex items-center w-full px-5 py-3 text-sm font-bold rounded-2xl transition-all duration-300 ${
-                    isActive 
-                      ? "text-white bg-white/10 shadow-sm border border-white/10" 
-                      : "text-zinc-500 hover:text-white hover:bg-white/5 border border-transparent"
-                  }`}
-                >
-                  <span className="tracking-wide">{item.name}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        <div className="p-3 space-y-1 relative z-10 mb-4 bg-[#0a0a0c]">
-          {!user && (
-            <div className="px-3 pb-3 mb-2 border-b border-white/5">
-              <Link href="/login" className="flex items-center justify-center w-full py-3 bg-white/5 hover:bg-white/10 text-white text-sm font-bold rounded-xl border border-white/5 transition-colors">
-                Sign In / Sign Up
-              </Link>
-            </div>
+      {/* ---------- mobile top bar ---------- */}
+      <header className="md:hidden fixed top-0 inset-x-0 z-40 h-14 px-4 flex items-center justify-between bg-paper/95 backdrop-blur border-b border-line">
+        <Link href={user ? "/dashboard" : "/"} className="num text-[1.375rem] tracking-tight">Chình</Link>
+        <div className="flex items-center gap-1">
+          {role === "admin" && (
+            <Link href="/events/create" className="btn btn-quiet btn-sm" aria-label={t("sidebar.hostEvent")}><PlusCircle size={20} /></Link>
           )}
-          <button 
-            onClick={toggleLanguage}
-            className="w-full flex justify-between items-center px-5 py-3 text-sm font-bold text-zinc-500 hover:text-white transition-colors rounded-2xl hover:bg-white/5"
-          >
-            <span className="tracking-wide">{t('sidebar.language')}</span>
-            <span className="text-orange-500 uppercase">{language || 'EN'}</span>
+          <button onClick={toggleTheme} className="btn btn-quiet btn-sm" aria-label={themeLabel}><ThemeIcon size={19} /></button>
+          <button onClick={toggleLanguage} className="btn btn-quiet btn-sm" aria-label={langLabel}>
+            <Languages size={18} /> {language === "en" ? "VI" : "EN"}
+          </button>
+        </div>
+      </header>
+
+      {/* ---------- mobile bottom tabs ---------- */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-surface border-t border-line pb-[env(safe-area-inset-bottom)]" aria-label="Main">
+        <ul className="grid grid-cols-4">
+          {items.map(({ label, href, icon: Icon, match }) => {
+            const active = match(pathname);
+            return (
+              <li key={href}>
+                <Link href={href} aria-current={active ? "page" : undefined} className={`flex flex-col items-center gap-0.5 pt-2 pb-2.5 text-[0.75rem] font-semibold ${active ? "text-ink" : "text-ink-3"}`}>
+                  <span className={`w-14 h-8 rounded-full flex items-center justify-center ${active ? "bg-volt text-volt-ink" : ""}`}>
+                    <Icon size={20} strokeWidth={active ? 2.4 : 2} />
+                  </span>
+                  {label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {/* ---------- desktop rail ---------- */}
+      <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-60 flex-col border-r border-line bg-surface px-4 py-6">
+        <Link href={user ? "/dashboard" : "/"} className="num text-[1.75rem] tracking-tight px-3">Chình</Link>
+        <nav className="mt-8 flex flex-col gap-1" aria-label="Main">
+          {items.map(({ label, href, icon: Icon, match }) => {
+            const active = match(pathname);
+            return (
+              <Link key={href} href={href} aria-current={active ? "page" : undefined}
+                className={`flex items-center gap-3 h-12 px-3 rounded-xl font-semibold ${active ? "bg-volt text-volt-ink" : "text-ink-2 hover:bg-court-tint hover:text-ink"}`}>
+                <Icon size={20} /> {label}
+              </Link>
+            );
+          })}
+          {role === "admin" && (
+            <Link href="/events/create" aria-current={pathname === "/events/create" ? "page" : undefined}
+              className={`flex items-center gap-3 h-12 px-3 rounded-xl font-semibold ${pathname === "/events/create" ? "bg-volt text-volt-ink" : "text-ink-2 hover:bg-court-tint hover:text-ink"}`}>
+              <PlusCircle size={20} /> {t("sidebar.hostEvent")}
+            </Link>
+          )}
+        </nav>
+        <div className="mt-auto flex flex-col gap-1">
+          <button onClick={toggleTheme} className="flex items-center gap-3 h-12 px-3 rounded-xl font-semibold text-ink-2 hover:bg-court-tint hover:text-ink">
+            <ThemeIcon size={20} /> {themeLabel}
+          </button>
+          <button onClick={toggleLanguage} className="flex items-center gap-3 h-12 px-3 rounded-xl font-semibold text-ink-2 hover:bg-court-tint hover:text-ink">
+            <Languages size={20} /> {langLabel}
           </button>
           {user && (
-            <button 
-              onClick={handleSignOut} 
-              className="w-full text-left px-5 py-3 text-sm font-bold text-red-500/70 hover:text-red-500 transition-colors rounded-2xl hover:bg-red-500/10 tracking-wide"
-            >
-              {t('sidebar.signOut')}
+            <button onClick={signOut} className="flex items-center gap-3 h-12 px-3 rounded-xl font-semibold text-ink-2 hover:bg-loss-tint hover:text-loss">
+              <LogOut size={20} /> {t("sidebar.signOut")}
             </button>
           )}
         </div>

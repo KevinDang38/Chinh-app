@@ -1,11 +1,11 @@
 {
   "common": {
     "guest": "Khách",
-    "loading": "Đang tải hồ sơ...",
+    "loading": "Đang tải…",
     "waiting": "Đang chờ...",
     "orLeaveGuest": "Hoặc để là Khách",
-    "win": "THẮNG",
-    "loss": "THUA",
+    "win": "Thắng",
+    "loss": "Thua",
     "singles": "Đánh Đơn",
     "doubles": "Đánh Đôi",
     "rating": "Hệ số",
@@ -21,7 +21,7 @@
     "language": "Ngôn Ngữ"
   },
   "dashboard": {
-    "title": "Dashboard",
+    "title": "Điểm của bạn",
     "winRate": "Tỉ Lệ Thắng",
     "matches": "Số Trận",
     "welcome": "Chào mừng!",
@@ -32,19 +32,27 @@
     "performanceHistory": "Lịch Sử DUPR",
     "performanceHistorySub": "Quỹ đạo điểm xếp hạng của bạn qua các trận đấu.",
     "score": "Tỷ số",
-    "start": "Bắt đầu"
+    "start": "Bắt đầu",
+    "hello": "Chào"
   },
   "friends": {
     "title": "Bạn Bè",
     "searchPlaceholder": "Nhập email của bạn bè...",
     "addBtn": "Thêm Bạn",
     "myFriends": "Danh Sách Bạn Bè",
-    "noFriends": "Bạn chưa thêm ai vào danh sách."
+    "noFriends": "Bạn chưa thêm ai vào danh sách.",
+    "addFailed": "Không thêm được bạn này. Thử lại nhé.",
+    "added": "Đã thêm bạn.",
+    "already": "Hai bạn đã là bạn bè.",
+    "guestEmpty": "Đăng nhập để thêm bạn và so điểm.",
+    "notFound": "Chưa có người chơi nào dùng email này.",
+    "notYourself": "Đây là email của bạn.",
+    "sub": "Thêm người chơi bằng email để chọn họ khi ghi trận."
   },
   "logMatch": {
-    "manual": "Nhập Thủ Công",
-    "host": "Tạo Phòng Live",
-    "join": "Vào Phòng Live",
+    "manual": "Thủ công",
+    "host": "Tạo phòng",
+    "join": "Vào phòng",
     "yourTeam": "Đội Của Bạn",
     "opponents": "Đối Thủ",
     "player1": "Người chơi 1",
@@ -62,24 +70,36 @@
     "hostRole": "Chủ Phòng",
     "p1Role": "Người chơi 1",
     "p2Role": "Người chơi 2",
-    "unfilled": "Các vị trí trống sẽ được ghi là Khách ẩn danh.",
+    "unfilled": "Chỗ trống sẽ được lưu là khách.",
     "joinLive": "Tham Gia Trận Live",
-    "findMatch": "Tìm Trận",
+    "findMatch": "Tìm trận",
     "chooseTeam": "Chọn Đội Của Bạn",
     "selectPosition": "Chọn một vị trí trống cho trận 2v2 này.",
     "taken": "Đã Chọn",
-    "joinBtn": "Tham Gia →",
+    "joinBtn": "Tham gia",
     "cancel": "Hủy",
     "youAreIn": "Bạn đã vào phòng!",
     "hostDesc": "Tạo mã PIN để người chơi tham gia phòng từ thiết bị của họ.",
     "joinDesc": "Nhập mã PIN 4 số do chủ phòng cung cấp.",
-    "waitingForHost": "Đang chờ chủ phòng gửi điểm số cuối cùng..."
+    "waitingForHost": "Đang chờ chủ phòng gửi điểm số cuối cùng...",
+    "cancelLobby": "Đóng phòng",
+    "finalScore": "Tỉ số cuối",
+    "liveMatch": "Trận trực tiếp",
+    "logAnother": "Ghi trận khác",
+    "newRating": "Điểm mới của bạn",
+    "pinHint": "Người chơi mở Vào phòng và nhập mã PIN này.",
+    "saveToProfile": "Lưu vào hồ sơ của tôi",
+    "saved": "Đã lưu trận đấu",
+    "scoreHint": "Ván chơi tới 11, 15 hoặc 21. Thắng cách 2 điểm.",
+    "seeDashboard": "Xem điểm của tôi",
+    "title": "Ghi trận đấu",
+    "you": "Bạn"
   },
   "profile": {
     "profileId": "ID Hồ Sơ",
     "duprRating": "Điểm DUPR",
     "onFriendsList": "Đã Kết Bạn",
-    "addFriend": "➕ Thêm Bạn",
+    "addFriend": "Thêm bạn",
     "totalMatches": "Tổng Số Trận",
     "wins": "Thắng",
     "losses": "Thua",
@@ -99,13 +119,14 @@
       "regionPlaceholder": "vd: Hồ Chí Minh, VN",
       "duprLabel": "DUPR Của Tôi",
       "duprPlaceholder": "vd: 3.5",
-      "noEvents": "Không tìm thấy sự kiện nào phù hợp với tiêu chí của bạn."
+      "noEvents": "Không tìm thấy sự kiện nào phù hợp với tiêu chí của bạn.",
+      "sub": "Tìm buổi chơi hợp với trình độ của bạn."
     },
     "status": {
-      "completed": "KẾT THÚC",
-      "live": "ĐANG DIỄN RA",
-      "closed": "ĐÃ ĐÓNG",
-      "open": "MỞ ĐĂNG KÝ",
+      "completed": "Đã kết thúc",
+      "live": "Đang diễn ra",
+      "closed": "Đã đóng",
+      "open": "Mở đăng ký",
       "registration": "Mở Đăng Ký",
       "upcoming": "Sắp Tới",
       "tournament": "Giải Đấu",
@@ -113,8 +134,8 @@
     },
     "buttons": {
       "processing": "Đang Xử Lý...",
-      "registered": "✓ Đã Đăng Ký",
-      "pending_approval": "⏳ Đang Chờ Duyệt",
+      "registered": "Đã đăng ký",
+      "pending_approval": "Đang chờ duyệt",
       "approved": "Đã Duyệt",
       "onWaitlist": "Danh Sách Chờ",
       "join_event": "Tham Gia Sự Kiện",
@@ -128,13 +149,14 @@
       "reject": "Từ Chối",
       "remove": "Xóa Bỏ",
       "lock_seeding": "Khóa Hạt Giống",
-      "open_manager": "Mở Bảng Điều Khiển Quản Lý"
+      "open_manager": "Mở Bảng Điều Khiển Quản Lý",
+      "notAccepted": "Không được nhận"
     },
     "tabs": {
       "overview": "Tổng Quan",
       "participants": "Người Tham Gia",
-      "bracket": "Sơ Đồ Thi Đấu",
-      "admin": "Quản Lý Admin"
+      "bracket": "Nhánh đấu",
+      "admin": "Quản lý"
     },
     "details": {
       "title": "Chi Tiết Sự Kiện",
@@ -154,7 +176,12 @@
       "seed": "Hạt Giống",
       "position": "Vị Trí",
       "entryFee": "Phí Tham Gia",
-      "payHostDirectly": "Thanh Toán Trực Tiếp Cho Chủ Nhà"
+      "payHostDirectly": "Thanh Toán Trực Tiếp Cho Chủ Nhà",
+      "closedHint": "Sự kiện này đã đóng đăng ký.",
+      "joinHint": "Gửi yêu cầu tham gia. Chủ sự kiện sẽ duyệt.",
+      "ratingRange": "Khoảng điểm",
+      "tournamentWeight": "Kết quả giải đấu được tính 1,25× vào điểm của bạn.",
+      "yourSpot": "Chỗ của bạn"
     },
     "bracket": {
       "notGenerated": "Nhánh đấu sẽ được tạo sau khi đóng đăng ký.",
@@ -175,7 +202,8 @@
       "finals": "Chung Kết",
       "semifinals": "Bán Kết",
       "quarterfinals": "Tứ Kết",
-      "roundOf": "Vòng"
+      "roundOf": "Vòng",
+      "final": "Xong"
     },
     "admin": {
       "tournamentEngine": "Hệ Thống Giải Đấu",
@@ -190,7 +218,13 @@
       "eventStatus": "Trạng Thái Sự Kiện",
       "editFee": "Sửa Phí",
       "waitlistEmpty": "Danh sách chờ trống.",
-      "rosterEmpty": "Danh sách người tham gia trống."
+      "rosterEmpty": "Danh sách người tham gia trống.",
+      "approved": "Đã duyệt",
+      "checkedIn": "Đã check-in",
+      "paid": "Đã trả phí",
+      "pending": "Chờ duyệt",
+      "saveFee": "Lưu phí",
+      "waitlist": "Danh sách chờ"
     },
     "create": {
       "title": "Tổ Chức Sự Kiện Mới",
@@ -221,7 +255,9 @@
       "openPlayers": "Không giới hạn",
       "publish_btn": "Đăng Sự Kiện",
       "error_even_players": "Số lượng người chơi tối đa phải là số chẵn!",
-      "free": "Miễn Phí"
+      "free": "Miễn Phí",
+      "error_create": "Không tạo được sự kiện:",
+      "error_dates": "Ngày kết thúc phải cùng hoặc sau ngày bắt đầu."
     },
     "alerts": {
       "no_tie": "Trận đấu không thể có kết quả hòa.",
@@ -254,7 +290,8 @@
     "alreadyHost": "Bạn đang là chủ phòng!",
     "lobbyFull": "Phòng đã đầy!",
     "invalidPickleballScore": "Điểm số không hợp lệ!\n\nPickleball được đánh chạm 11, 15, hoặc 21 điểm, và bạn phải thắng cách biệt 2 điểm.\n\nNếu trận đấu kéo dài thêm, bạn phải thắng cách biệt CHÍNH XÁC 2 điểm (ví dụ: 12-10, 16-14).",
-    "successNewRating": "Thành công! Điểm DUPR mới: "
+    "successNewRating": "Thành công! Điểm DUPR mới: ",
+    "submitFailed": "Không lưu được trận đấu:"
   },
   "auth": {
     "welcomeBack": "Chào mừng trở lại",
@@ -271,6 +308,29 @@
     "signIn": "Đăng Nhập",
     "signUp": "Đăng Ký",
     "noAccount": "Chưa có tài khoản?",
-    "hasAccount": "Đã có tài khoản?"
+    "hasAccount": "Đã có tài khoản?",
+    "continueGuest": "Tiếp tục với tư cách khách",
+    "newPasswordTitle": "Đặt mật khẩu mới",
+    "passwordUpdated": "Đã lưu mật khẩu. Đang mở trang của bạn…",
+    "savePassword": "Lưu mật khẩu",
+    "tagline": "Ghi lại mọi trận. Theo dõi điểm của bạn thay đổi."
+  },
+  "guest": {
+    "body": "Tạo tài khoản miễn phí để lưu trận đấu và có điểm.",
+    "cta": "Đăng nhập hoặc tạo tài khoản",
+    "eventsBody": "Tạo tài khoản miễn phí để đăng ký sự kiện.",
+    "friendsBody": "Tạo tài khoản miễn phí để thêm bạn và chơi trận trực tiếp cùng nhau.",
+    "later": "Để sau",
+    "title": "Đăng nhập để tiếp tục"
+  },
+  "nav": {
+    "me": "Tôi",
+    "darkMode": "Giao diện tối",
+    "lightMode": "Giao diện sáng"
+  },
+  "rating": {
+    "established": "Điểm đã ổn định",
+    "provisional": "Tạm tính: đang xác định trình độ",
+    "settling": "Đang ổn định"
   }
 }

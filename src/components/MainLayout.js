@@ -1,24 +1,17 @@
 "use client";
+import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import { LanguageProvider } from "../context/LanguageContext";
 
 export default function MainLayout({ children }) {
+  const pathname = usePathname();
+  const bare = pathname === "/login" || pathname === "/update-password";
   return (
     <LanguageProvider>
-      <div className="flex min-h-screen bg-[#050507] text-white font-sans selection:bg-orange-500/30">
-        
-        {/* The updated Sidebar automatically handles both the Desktop nav and the Mobile Top Header */}
-        <Sidebar />
-        
-        {/* 
-          Main Content Wrapper:
-          pt-16 ensures mobile content doesn't hide behind the fixed 4rem (16) mobile header.
-          md:pt-0 removes that top padding on desktop since the sidebar is on the left.
-        */}
-        <div className="flex-1 flex flex-col min-w-0 w-full pt-16 md:pt-0">
-          {children}
-        </div>
-
+      <Sidebar />
+      {/* mobile: room for top bar (h-14) and bottom tabs; desktop: room for the 15rem rail */}
+      <div className={bare ? "min-h-dvh" : "min-h-dvh pt-14 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pt-0 md:pb-0 md:pl-60"}>
+        {children}
       </div>
     </LanguageProvider>
   );
